@@ -1,0 +1,31 @@
+.container {
+    max-width: 600px;
+    margin: 4rem auto;
+    padding: 2rem;
+    text-align: center;
+}
+
+.container h1 {
+    color: #1C4A2A;
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.container p {
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.link {
+    display: inline-block;
+    padding: 0.8rem 1.5rem;
+    background-color: #1C4A2A;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.link:hover {
+    background-color: #153d21;
+} 
