@@ -1,6 +1,14 @@
+"use client";
 import styles from "./Login.module.css";
 import Image from "next/image";
+import GoogleSignInButton from "../GoogleSignInButton/GoogleSignInButton";
+
 export default function LoginForm() {
+    const handleGoogleSignIn = () => {
+        // TODO: Implement Google sign-in logic
+        console.log("Google sign-in clicked");
+    };
+
     return (
         <div className={styles.loginContainer}>
             <h2>Login</h2>
@@ -33,6 +41,12 @@ export default function LoginForm() {
             <br/>
             <br/>
             <p className={styles.forgot}><a href="/forgot-password">Forgot Password?</a></p>
+            
+            <div className={styles.divider}>
+                <span>or</span>
+            </div>
+            
+            <GoogleSignInButton onClick={handleGoogleSignIn} />
         </div>
     );
 }

@@ -1,6 +1,14 @@
+"use client";
 import styles from "./signup.module.css";
 import Image from "next/image";
+import GoogleSignInButton from "../GoogleSignInButton/GoogleSignInButton";
+
 export default function SignUpForm() {
+    const handleGoogleSignIn = () => {
+        // TODO: Implement Google sign-in logic
+        console.log("Google sign-in clicked");
+    };
+
     return (
         <div className={styles.signupContainer}>
             <h2>Sign Up</h2>
@@ -82,6 +90,12 @@ export default function SignUpForm() {
             <button className={`${styles.button} ${styles.resetButton}`}>
                 Reset
             </button>
+
+            <div className={styles.divider}>
+                <span>or</span>
+            </div>
+            
+            <GoogleSignInButton onClick={handleGoogleSignIn} text="Sign up with Google" />
         </div>
     );
 }
