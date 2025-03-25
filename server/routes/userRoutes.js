@@ -1,4 +1,5 @@
 const express = require("express");
+const router = express.Router();
 const {
     getUsers,
     getMe,
@@ -9,16 +10,17 @@ const {
     googleCallback,
 } = require("../controllers/userController");
 
-
-const router = express.Router();
-
-// Public Routes
-router.get("/", getUsers);
-router.get("/me", getMe);
+// Public routes
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/logout", logoutUser);
+router.get("/logout", logoutUser);
+
+// Google OAuth routes
 router.get("/google", googleauth);
 router.get("/google/callback", googleCallback);
 
-module.exports = router;
+// Protected routes
+router.get("/me", getMe);
+router.get("/", getUsers);
+
+module.exports = router; 
