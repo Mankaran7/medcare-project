@@ -1,8 +1,10 @@
 const bcrypt = require("bcrypt");
 const passport_local = require("../config/passport-local-strategy.js");
-const db = require("../config/db.js");
 const passport_google = require("../config/passport-google-oauth.js");
+const db = require("../config/db.js");          
 
+// @desc Get basic user data
+// @route GET /api/users/
 const getUsers = (req, res) => {
     res.status(200).json({
         ok: true,
@@ -10,6 +12,8 @@ const getUsers = (req, res) => {
     });
 };
 
+// @desc Get logged-in user data
+// @route GET /api/users/me
 const getMe = (req, res) => {
     if (req.isAuthenticated()) {
         res.json(req.user);
@@ -18,6 +22,8 @@ const getMe = (req, res) => {
     }
 };
 
+// @desc Register a new user
+// @route POST /api/users/register
 const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
 
@@ -51,6 +57,7 @@ const registerUser = async (req, res) => {
             });
         }
 
+        // Auto-login after successful registration
         req.login(newUser, (err) => {
             if (err) {
                 console.error("Auto-login error:", err);
@@ -76,6 +83,8 @@ const registerUser = async (req, res) => {
     }
 };
 
+// @desc Login user
+// @route POST /api/users/login
 const loginUser = (req, res, next) => {
     passport_local.authenticate("local", (err, user, info) => {
         if (err) {
@@ -105,6 +114,8 @@ const loginUser = (req, res, next) => {
     })(req, res, next);
 };
 
+// @desc Logout user
+// @route POST /api/users/logout
 const logoutUser = (req, res) => {
     req.logout((err) => {
         if (err) {
@@ -117,38 +128,36 @@ const logoutUser = (req, res) => {
     });
 };
 
-const googleauth = (req, res) => {
+// @desc Google OAuth login
+// @route GET /api/users/google
+const googleAuth = (req, res) => {
     passport_google.authenticate("google", { 
         scope: ["profile", "email"],
         prompt: "select_account"
     })(req, res);
 };
 
+// @desc Google OAuth callback
+// @route GET /api/users/google/callback
 const googleCallback = (req, res, next) => {
     passport_google.authenticate("google", (err, user) => {
         if (err) {
-            return res.status(500).json({
-                message: "Google authentication failed",
-                ok: false
-            });
+            console.error("Google auth error:", err);
+            return res.redirect("http://localhost:3000/login?error=google_auth_failed");
         }
+        
         if (!user) {
-            return res.status(401).json({
-                message: "Google authentication failed",
-                ok: false
-            });
+            return res.redirect("http://localhost:3000/login?error=no_user");
         }
+
         req.logIn(user, (err) => {
             if (err) {
-                return res.status(500).json({
-                    message: "Login failed",
-                    ok: false
-                });
+                console.error("Login error:", err);
+                return res.redirect("http://localhost:3000/login?error=login_failed");
             }
-            return res.status(200).json({
-                user,
-                ok: true
-            });
+            
+            // Successful authentication, redirect home
+            return res.redirect("http://localhost:3000");
         });
     })(req, res, next);
 };
@@ -159,6 +168,6 @@ module.exports = {
     registerUser,
     loginUser,
     logoutUser,
-    googleauth,
+    googleAuth,
     googleCallback,
 };

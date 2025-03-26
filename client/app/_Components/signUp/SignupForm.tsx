@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import styles from "./signup.module.css";
+import styles from "./signup.module.css"
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useLogin } from "../../providers/loginProvider";
 import GoogleSignInButton from "../GoogleSignInButton/GoogleSignInButton";
+
 export default function SignUpForm() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -91,9 +92,11 @@ export default function SignUpForm() {
         setEmail("");
         setPassword("");
     };
+
     const handleGoogleSignIn = () => {
-        window.location.href = "http://localhost:3000/api/users/google";
-    }
+        window.location.href = "http://localhost:3001/api/users/google";
+    };
+
     return (
         <div className={styles.signupContainer}>
             <h2>Sign Up</h2>
@@ -180,9 +183,13 @@ export default function SignUpForm() {
                     Reset
                 </button>
                 <div className={styles.divider}>
-                    <span>Or</span>
+                    <span>or</span>
                 </div>
-                <GoogleSignInButton onClick={handleGoogleSignIn} />
+
+                <GoogleSignInButton
+                    onClick={handleGoogleSignIn}
+                    text="Sign up with Google"
+                />
             </form>
         </div>
     );
