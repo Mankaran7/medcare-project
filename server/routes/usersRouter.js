@@ -26,9 +26,20 @@ router.get("/google",
 );
 
 router.get("/google/callback", 
-    passport.authenticate("google", { failureRedirect: "/login" }),
+    passport.authenticate("google", { failureRedirect: "http://localhost:3000/login" }),
     (req, res) => {
-        res.redirect("http://localhost:3000");
+        // Ensure user is set in session
+        if (req.user) {
+            req.session.save((err) => {
+                if (err) {
+                    console.error("Session save error:", err);
+                    return res.redirect("http://localhost:3000/login");
+                }
+                res.redirect("http://localhost:3000/auth/google/callback");
+            });
+        } else {
+            res.redirect("http://localhost:3000/login");
+        }
     }
 );
 

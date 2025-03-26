@@ -12,7 +12,7 @@ export default function LoginForm() {
     const [password, setPassword] = useState("");
     const router = useRouter();
     const handleGoogleSignIn = () => {
-        window.location.href = "http://localhost:3000/api/users/google";
+        window.location.href = "http://localhost:3001/api/users/google";
     }
     const { fetchUser } = useLogin();
 

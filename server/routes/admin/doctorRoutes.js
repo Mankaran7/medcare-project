@@ -6,11 +6,16 @@ const {
     getAllDoctors,
     addDoctor,
     updateDoctor,
-    deleteDoctor
+    deleteDoctor,
+    getDoctorById
 } = require('../../controllers/admin/doctorController');
 
-// All routes are protected with admin middleware
-//router.use(isAdmin);
+// Public routes
+router.get('/public', getAllDoctors);
+router.get('/public/:id', getDoctorById);
+
+// Admin protected routes
+router.use(isAdmin);
 
 router.get('/', getAllDoctors);
 router.post('/create', upload.single('image'), addDoctor);

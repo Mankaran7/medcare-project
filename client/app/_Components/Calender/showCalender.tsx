@@ -1,18 +1,33 @@
 import React, { useState } from "react";
 import styles from "./Calender.module.css";
 
-const Calendar = () => {
+interface CalendarProps {
+  onDateChange?: (date: Date) => void;
+}
+
+const Calendar: React.FC<CalendarProps> = ({ onDateChange }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [offset, setOffset] = useState(0);
 
   const handlePrev = () => {
     setOffset((prev) => prev - 1);
-    setSelectedDate((prev) => new Date(prev.setDate(prev.getDate() - 1)));
+    const newDate = new Date(selectedDate);
+    newDate.setDate(selectedDate.getDate() - 1);
+    setSelectedDate(newDate);
+    onDateChange?.(newDate);
   };
 
   const handleNext = () => {
     setOffset((prev) => prev + 1);
-    setSelectedDate((prev) => new Date(prev.setDate(prev.getDate() + 1)));
+    const newDate = new Date(selectedDate);
+    newDate.setDate(selectedDate.getDate() + 1);
+    setSelectedDate(newDate);
+    onDateChange?.(newDate);
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    onDateChange?.(date);
   };
 
   const renderDates = () => {
@@ -51,7 +66,7 @@ const Calendar = () => {
             className={`${styles.dateButton} ${
               date.toDateString() === selectedDate.toDateString() ? styles.selectedDate : ""
             }`}
-            onClick={() => setSelectedDate(date)}
+            onClick={() => handleDateSelect(date)}
           >
             <div className={styles.day}>{date.toLocaleString("default", { weekday: "short" })}</div>
             <div className={styles.date}>{date.getDate()} {date.toLocaleString("default", { month: "short" })}</div>

@@ -3,6 +3,8 @@
 import Calendar from "../Calender/showCalender";
 import style from "./booking.module.css";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useLogin } from "../../providers/loginProvider";
 
 interface Doctor {
     id: number;
@@ -23,76 +25,186 @@ interface AppointmentProps {
     doctor: Doctor;
 }
 
+interface TimeSlot {
+    time: string;
+    isAvailable: boolean;
+    id?: number;
+}
+
 export default function Appointment({ doctor }: AppointmentProps) {
-    const [offileGreen, setOffineGreen] = useState(true);
-    const [HospitalList, setHospitalList] = useState([
+    const router = useRouter();
+    const { user } = useLogin();
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [offlineMode, setOfflineMode] = useState(true);
+    const [HospitalList] = useState([
         "MediCareHeart Institute, Okhla Road",
     ]);
-    const [slotsAvailable, setSlotsAvailable] = useState([
+    
+    // Define all possible time slots
+    const defaultMorningSlots: TimeSlot[] = [
         { time: "9:00 AM", isAvailable: true },
+        { time: "9:30 AM", isAvailable: true },
         { time: "10:00 AM", isAvailable: true },
+        { time: "10:30 AM", isAvailable: true },
         { time: "11:00 AM", isAvailable: true },
-        { time: "11:30 AM", isAvailable: false },
-        { time: "12:00 PM", isAvailable: true },
-        { time: "12:30 PM", isAvailable: false },
-        { time: "1:00 PM", isAvailable: true },
-        { time: "1:30 PM", isAvailable: true },
-    ]);
-    const [slotsAvailableE, setSlotsAvailableE] = useState([
+        { time: "11:30 AM", isAvailable: true },
+        { time: "12:00 PM", isAvailable: true }
+    ];
+
+    const defaultEveningSlots: TimeSlot[] = [
         { time: "4:00 PM", isAvailable: true },
-        { time: "4:30 PM", isAvailable: false },
+        { time: "4:30 PM", isAvailable: true },
         { time: "5:00 PM", isAvailable: true },
         { time: "5:30 PM", isAvailable: true },
         { time: "6:00 PM", isAvailable: true },
-        { time: "6:30 PM", isAvailable: false },
+        { time: "6:30 PM", isAvailable: true },
         { time: "7:00 PM", isAvailable: true },
-        { time: "7:30 PM", isAvailable: false },
-    ]);
-    const [slotSelected, setSlotSelected] = useState(-1);
-    const [slotSelectedE, setSlotSelectedE] = useState(-1);
-    const [modeSelected, setModeSelected] = useState(0);
-    const [count, setCount] = useState(0);
-    const [countE, setCountE] = useState(0);
+        { time: "7:30 PM", isAvailable: true }
+    ];
+
+    const [morningSlots, setMorningSlots] = useState<TimeSlot[]>(defaultMorningSlots);
+    const [eveningSlots, setEveningSlots] = useState<TimeSlot[]>(defaultEveningSlots);
+    const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
     useEffect(() => {
-        let temp = 0;
-        slotsAvailable.forEach((data) => {
-            if (data.isAvailable) temp++;
-        });
-        setCount(temp);
-    }, []);
+        fetchAvailableSlots();
+    }, [selectedDate, doctor.id]);
 
-    useEffect(() => {
-        let temp2 = 0;
-        slotsAvailableE.forEach((data) => {
-            if (data.isAvailable) temp2++;
-        });
-        setCountE(temp2);
-    }, []);
+    const fetchAvailableSlots = async () => {
+        try {
+            setLoading(true);
+            setError("");
+            const formattedDate = selectedDate.toISOString().split('T')[0];
+            const response = await fetch(
+                `http://localhost:3001/api/appointments/available-slots/${doctor.id}/${formattedDate}`
+            );
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch slots');
+            }
 
-    function handleToggle(i: number) {
-        if (i === 1 && offileGreen) {
-            return;
-        } else if (i === 2 && !offileGreen) {
+            const dbSlots = await response.json();
+            
+            // Update morning slots availability
+            const updatedMorningSlots = defaultMorningSlots.map(slot => {
+                const dbSlot = dbSlots.find((s: any) => formatTime(s.time_slot) === slot.time);
+                return {
+                    ...slot,
+                    id: dbSlot?.id,
+                    isAvailable: dbSlot ? dbSlot.is_available : false
+                };
+            });
+
+            // Update evening slots availability
+            const updatedEveningSlots = defaultEveningSlots.map(slot => {
+                const dbSlot = dbSlots.find((s: any) => formatTime(s.time_slot) === slot.time);
+                return {
+                    ...slot,
+                    id: dbSlot?.id,
+                    isAvailable: dbSlot ? dbSlot.is_available : false
+                };
+            });
+
+            setMorningSlots(updatedMorningSlots);
+            setEveningSlots(updatedEveningSlots);
+        } catch (err) {
+            setError("Failed to load available slots");
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDateChange = (date: Date) => {
+        setSelectedDate(date);
+        setSelectedSlot(null);
+    };
+
+    const handleToggle = (isOffline: boolean) => {
+        setOfflineMode(isOffline);
+    };
+
+    const handleSlotSelection = (slotId: number | undefined) => {
+        if (slotId) {
+            setSelectedSlot(slotId);
+        }
+    };
+
+    const formatTime = (time: string) => {
+        const [hours, minutes] = time.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes.padEnd(2, '0')} ${ampm}`;
+    };
+
+    const handleNext = async () => {
+        if (!user) {
+            router.push('/login');
             return;
         }
-        setOffineGreen(!offileGreen);
-        setModeSelected(i);
-    }
 
-    function handleSlotSelection(i: number) {
-        setSlotSelected(i);
-        if (slotSelectedE !== -1) setSlotSelectedE(-1);
-    }
+        if (!selectedSlot) {
+            setError("Please select a time slot");
+            return;
+        }
 
-    function handleSlotSelectionE(i: number) {
-        setSlotSelectedE(i);
-        if (slotSelected !== -1) setSlotSelected(-1);
-    }
+        try {
+            setLoading(true);
+            setError("");
+            
+            const response = await fetch('http://localhost:3001/api/appointments/book', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    doctorId: doctor.id,
+                    slotId: selectedSlot,
+                    mode: offlineMode ? 'offline' : 'online',
+                    patientName: user.user_name
+                })
+            });
 
-    function handleNext() {
-        //handleNext
-    }
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Failed to book appointment');
+            }
+
+            const appointment = await response.json();
+            
+            // Format the date and time for the success page
+            const allSlots = [...morningSlots, ...eveningSlots];
+            const selectedSlotData = allSlots.find(slot => slot.id === selectedSlot);
+            const formattedDate = selectedDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            // Redirect to success page with appointment details
+            const searchParams = new URLSearchParams({
+                doctorName: doctor.name,
+                date: formattedDate,
+                time: selectedSlotData ? selectedSlotData.time : '',
+                mode: offlineMode ? 'Hospital Visit' : 'Video Consultation'
+            });
+
+            router.push(`/appointments/success?${searchParams.toString()}`);
+        } catch (err: any) {
+            setError(err.message || "Failed to book appointment");
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const availableMorningCount = morningSlots.filter(slot => slot.isAvailable).length;
+    const availableEveningCount = eveningSlots.filter(slot => slot.isAvailable).length;
 
     return (
         <main className={style.main}>
@@ -112,77 +224,92 @@ export default function Appointment({ doctor }: AppointmentProps) {
                     </div>
                     <div className={style.consult}>
                         <button
-                            className={offileGreen ? style.bgGreen : style.White}
-                            onClick={() => handleToggle(1)}
+                            className={!offlineMode ? style.bgGreen : style.White}
+                            onClick={() => handleToggle(false)}
                         >
                             Book Video Consult
                         </button>
                         <button
-                            className={!offileGreen ? style.bgGreen : style.White}
-                            onClick={() => handleToggle(2)}
+                            className={offlineMode ? style.bgGreen : style.White}
+                            onClick={() => handleToggle(true)}
                         >
                             Book Hospital Visit
                         </button>
                     </div>
                     <select className={style.hospitalList}>
-                        <option>{HospitalList[0]}</option>
+                        {HospitalList.map((hospital, index) => (
+                            <option key={index}>{hospital}</option>
+                        ))}
                     </select>
-                    <Calendar/>
-                    <div className={style.availableSlots}>
-                        <div className={style.sunCountOfSlots}>
-                            <div className={style.sunMorning}>
-                                <div className={style.sun}></div>
-                                <div className={style.morning}>Morning</div>
+                    <Calendar onDateChange={handleDateChange} />
+                    
+                    {error && <div className={style.error}>{error}</div>}
+                    {loading ? (
+                        <div className={style.loading}>Loading slots...</div>
+                    ) : (
+                        <>
+                            <div className={style.availableSlots}>
+                                <div className={style.sunCountOfSlots}>
+                                    <div className={style.sunMorning}>
+                                        <div className={style.sun}></div>
+                                        <div className={style.morning}>Morning</div>
+                                    </div>
+                                    <div className={style.countOfSlots}>
+                                        <span>Slots {availableMorningCount}</span>
+                                    </div>
+                                </div>
+                                <div className={style.horizontalLine}></div>
+                                <div className={style.availableSlotsContainer}>
+                                    {morningSlots.map((slot, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => handleSlotSelection(slot.id)}
+                                            className={`${slot.id === selectedSlot ? style.bgGreen : style.bgWhite} ${
+                                                !slot.isAvailable ? style.disabled : ''
+                                            }`}
+                                            disabled={!slot.isAvailable}
+                                        >
+                                            {slot.time}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className={style.countOfSlots}>
-                                <span> Slots {count} </span>
+
+                            <div className={style.availableSlots}>
+                                <div className={style.sunCountOfSlots}>
+                                    <div className={style.sunMorning}>
+                                        <div className={style.sunset}></div>
+                                        <div className={style.morning}>Evening</div>
+                                    </div>
+                                    <div className={style.countOfSlots}>
+                                        <span>Slots {availableEveningCount}</span>
+                                    </div>
+                                </div>
+                                <div className={style.horizontalLine}></div>
+                                <div className={style.availableSlotsContainer}>
+                                    {eveningSlots.map((slot, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => handleSlotSelection(slot.id)}
+                                            className={`${slot.id === selectedSlot ? style.bgGreen : style.bgWhite} ${
+                                                !slot.isAvailable ? style.disabled : ''
+                                            }`}
+                                            disabled={!slot.isAvailable}
+                                        >
+                                            {slot.time}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                        <div className={style.horizontalLine}></div>
-                        <div className={style.availableSlotsContainer}>
-                            {slotsAvailable.map((data, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => handleSlotSelection(i)}
-                                    className={`${i === slotSelected ? style.bgGreen : style.bgWhite} ${
-                                        !data.isAvailable ? style.disabled : ''
-                                    }`}
-                                >
-                                    {data.time}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className={style.availableSlots}>
-                        <div className={style.sunCountOfSlots}>
-                            <div className={style.sunMorning}>
-                                <div className={style.sunset}></div>
-                                <div className={style.morning}>Evening</div>
-                            </div>
-                            <div className={style.countOfSlots}>
-                                <span> Slots {countE} </span>
-                            </div>
-                        </div>
-                        <div className={style.horizontalLine}></div>
-                        <div className={style.availableSlotsContainer}>
-                            {slotsAvailableE.map((data, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => handleSlotSelectionE(i)}
-                                    className={`${i === slotSelectedE ? style.bgGreen : style.bgWhite} ${
-                                        !data.isAvailable ? style.disabled : ''
-                                    }`}
-                                >
-                                    {data.time}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                        </>
+                    )}
+                    
                     <button
                         className={style.nextButton}
                         onClick={handleNext}
+                        disabled={loading || !selectedSlot}
                     >
-                        Next
+                        {loading ? 'Booking...' : 'Next'}
                     </button>
                 </div>
             </div>

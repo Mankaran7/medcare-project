@@ -1,219 +1,57 @@
 "use client";
 
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useState, useEffect } from "react";
 import CardComp from "../Card/Card";
 import Search from "../SearchBar/Search";
 import styles from "./CardsGrid.module.css";
 
-const doctorsData = [
-    {
-        id: 1,
-        name: "Dr. Jane Doe",
-        degree: "MBBS, MD",
-        specialty: "Dentist",
-        experience: "9 Years",
-        rating: 4,
-        image: "https://www.shutterstock.com/image-vector/male-doctor-smiling-happy-face-600nw-2481032615.jpg",
-        designation: "Senior Consultant, Dental Surgery",
-        hospital: "MediCare Dental Centre",
-        about: "Dr. Jane Doe is a highly experienced dental surgeon with expertise in cosmetic dentistry and oral surgery. She has successfully treated thousands of patients and is known for her gentle approach to dental care.",
-        education: [
-            "MBBS - Top Medical University (2005)",
-            "MD in Dental Surgery (2009)",
-            "Fellowship in Advanced Cosmetic Dentistry (2011)"
-        ],
-        awards: [
-            "Best Dental Surgeon Award 2019",
-            "Excellence in Patient Care 2020"
-        ],
-        publications: [
-            "Advanced Techniques in Cosmetic Dentistry - Journal of Dental Science 2018",
-            "Modern Approaches to Oral Surgery - Dental Research Quarterly 2020"
-        ],
-        languages: ["English", "Hindi", "Spanish"],
-        consultationFee: 2000,
-        availableSlots: {
-            morning: ["9:00 AM", "10:00 AM", "11:00 AM"],
-            evening: ["4:00 PM", "5:00 PM", "6:00 PM"]
-        },
-        nextAvailable: "Today"
-    },
-    {
-        id: 2,
-        name: "Dr. Sam Wilson",
-        degree: "BDS, MDS",
-        specialty: "Dentist",
-        experience: "5 Years",
-        rating: 5,
-        image: "https://www.shutterstock.com/image-vector/male-doctor-smiling-happy-face-600nw-2481032615.jpg",
-        designation: "Consultant, Dental Surgery",
-        hospital: "MediCare Dental Centre",
-        about: "Dr. Sam Wilson specializes in preventive dentistry and oral health education. His patient-first approach and expertise in modern dental techniques have helped numerous patients achieve better oral health.",
-        education: [
-            "BDS - Premier Dental College (2015)",
-            "MDS in Conservative Dentistry (2018)"
-        ],
-        awards: [
-            "Young Dentist of the Year 2020",
-            "Best Research Paper in Preventive Dentistry 2019"
-        ],
-        publications: [
-            "Preventive Dentistry in Modern Practice - Dental Journal 2019",
-            "Patient Education in Dental Care - Oral Health Review 2021"
-        ],
-        languages: ["English", "Hindi"],
-        consultationFee: 1800,
-        availableSlots: {
-            morning: ["9:00 AM", "10:00 AM", "11:00 AM"],
-            evening: ["4:00 PM", "5:00 PM", "6:00 PM"]
-        },
-        nextAvailable: "Today"
-    },
-    {
-        id: 3,
-        name: "Dr. Pepper Potts",
-        degree: "BHMS, MD",
-        specialty: "Dentist",
-        experience: "5 Years",
-        rating: 4,
-        image: "https://www.shutterstock.com/image-vector/male-doctor-smiling-happy-face-600nw-2481032615.jpg",
-        designation: "Associate Consultant, Dental Surgery",
-        hospital: "MediCare Dental Centre",
-        about: "Dr. Pepper Potts is known for her expertise in pediatric dentistry and orthodontics. She has a special way with young patients and makes dental visits a pleasant experience for children.",
-        education: [
-            "BHMS - Homeopathic Medical College (2015)",
-            "MD in Pediatric Dentistry (2018)"
-        ],
-        awards: [
-            "Excellence in Pediatric Dental Care 2021",
-            "Best Child-Friendly Dentist Award 2020"
-        ],
-        publications: [
-            "Child Psychology in Dental Practice - Pediatric Dental Journal 2020",
-            "Modern Orthodontic Approaches - Dental Science Quarterly 2021"
-        ],
-        languages: ["English", "Hindi", "French"],
-        consultationFee: 1500,
-        availableSlots: {
-            morning: ["9:00 AM", "10:00 AM", "11:00 AM"],
-            evening: ["4:00 PM", "5:00 PM", "6:00 PM"]
-        },
-        nextAvailable: "Today"
-    },
-    {
-        id: 4,
-        name: "Dr. Bruce Banner",
-        degree: "MD, DM",
-        specialty: "Neurologist",
-        experience: "15 Years",
-        rating: 5,
-        image: "https://www.shutterstock.com/image-vector/male-doctor-smiling-happy-face-600nw-2481032615.jpg",
-        designation: "Senior Consultant, Neurology",
-        hospital: "MediCare Neuroscience Centre",
-        about: "Dr. Bruce Banner is a renowned neurologist with extensive experience in treating complex neurological disorders. His research work in neurodegenerative diseases has been internationally recognized.",
-        education: [
-            "MD - Top Medical Institute (2005)",
-            "DM in Neurology (2008)",
-            "Fellowship in Movement Disorders (2010)"
-        ],
-        awards: [
-            "Outstanding Neurologist Award 2018",
-            "Best Research in Neuroscience 2020"
-        ],
-        publications: [
-            "Novel Approaches in Neurodegenerative Disease Treatment - Neurology Today 2019",
-            "Understanding Movement Disorders - Medical Science Journal 2021"
-        ],
-        languages: ["English", "Hindi", "German"],
-        consultationFee: 3000,
-        availableSlots: {
-            morning: ["9:00 AM", "10:00 AM", "11:00 AM"],
-            evening: ["4:00 PM", "5:00 PM", "6:00 PM"]
-        },
-        nextAvailable: "Today"
-    },
-    {
-        id: 5,
-        name: "Dr. Tony Stark",
-        degree: "MBBS",
-        specialty: "Cardiologist",
-        experience: "20 Years",
-        rating: 5,
-        image: "https://www.shutterstock.com/image-vector/male-doctor-smiling-happy-face-600nw-2481032615.jpg",
-    },
-    {
-        id: 6,
-        name: "Dr. Natasha Romanoff",
-        degree: "MD",
-        specialty: "Pediatrician",
-        experience: "10 Years",
-        rating: 4,
-        image: "https://www.shutterstock.com/image-vector/male-doctor-smiling-happy-face-600nw-2481032615.jpg",
-    },
-    {
-        id: 7,
-        name: "Dr. Steve Rogers",
-        degree: "MBBS",
-        specialty: "Orthopedic Surgeon",
-        experience: "12 Years",
-        rating: 5,
-        image: "https://via.placeholder.com/150",
-    },
-    {
-        id: 8,
-        name: "Dr. Wanda Maximoff",
-        degree: "MD",
-        specialty: "Psychiatrist",
-        experience: "8 Years",
-        rating: 4,
-        image: "https://via.placeholder.com/150",
-    },
-    {
-        id: 9,
-        name: "Dr. Stephen Strange",
-        degree: "MBBS",
-        specialty: "Neurosurgeon",
-        experience: "18 Years",
-        rating: 5,
-        image: "https://via.placeholder.com/150",
-    },
-    {
-        id: 10,
-        name: "Dr. Carol Danvers",
-        degree: "BAMS",
-        specialty: "General Physician",
-        experience: "7 Years",
-        rating: 4,
-        image: "https://via.placeholder.com/150",
-    },
-    {
-        id: 11,
-        name: "Dr. Scott Lang",
-        degree: "BHMS",
-        specialty: "Dermatologist",
-        experience: "6 Years",
-        rating: 4,
-        image: "https://via.placeholder.com/150",
-    },
-    {
-        id: 12,
-        name: "Dr. Peter Parker",
-        degree: "MBBS",
-        specialty: "ENT Specialist",
-        experience: "5 Years",
-        rating: 5,
-        image: "https://via.placeholder.com/150",
-    },
-];
-
-export const doctors = doctorsData;
+interface Doctor {
+    doctor_id: number;
+    doctor_name: string;
+    doctor_photo: string;
+    degree: string;
+    speciality: string;
+    experience_years: number;
+    location: string;
+    rating?: number; // Optional since it's not in DB
+}
 
 export default function ShowCards() {
+    const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    
     const [filters, setFilters] = useState({
         rating: "any",
         experience: "15+",
         gender: "any",
     });
+
+    useEffect(() => {
+        fetchDoctors();
+    }, []);
+
+    const fetchDoctors = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('http://localhost:3001/api/admin/doctors/public');
+            if (!response.ok) {
+                throw new Error('Failed to fetch doctors');
+            }
+            const data = await response.json();
+            // Add default rating if not present
+            const doctorsWithRating = data.map((doc: Doctor) => ({
+                ...doc,
+                rating: doc.rating || 4 // Default rating of 4
+            }));
+            setDoctors(doctorsWithRating);
+        } catch (err) {
+            setError("Failed to load doctors");
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const resetFilters = () => {
         setFilters({
@@ -231,12 +69,19 @@ export default function ShowCards() {
         }));
     };
 
+    if (loading) {
+        return <div className={styles.loading}>Loading doctors...</div>;
+    }
+
+    if (error) {
+        return <div className={styles.error}>{error}</div>;
+    }
+
     return (
         <div className={styles.pageContainer}>
             <Search />
             <div className={styles.infoText}>
                 <p className={styles.docCount}>
-                    {" "}
                     {doctors.length} doctors available
                 </p>
                 <p className={styles.subText}>
@@ -434,7 +279,18 @@ export default function ShowCards() {
 
                 <div className={styles.gridContainer}>
                     {doctors.map((doctor) => (
-                        <CardComp key={doctor.id} doctor={doctor} />
+                        <CardComp 
+                            key={doctor.doctor_id} 
+                            doctor={{
+                                id: doctor.doctor_id,
+                                name: doctor.doctor_name,
+                                degree: doctor.degree,
+                                specialty: doctor.speciality,
+                                experience: `${doctor.experience_years} Years Experience`,
+                                rating: doctor.rating || 4,
+                                image: doctor.doctor_photo || '/default-doctor.png'
+                            }} 
+                        />
                     ))}
                 </div>
             </div>

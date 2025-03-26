@@ -13,69 +13,88 @@ interface UserContextType {
     setUser: (user: User | null) => void;
     fetchUser: () => Promise<void>;
     logout: () => Promise<void>;
+    isInitialized: boolean;
 }
 
-export const LoginContext = createContext<UserContextType | undefined>(
-    undefined
-);
+const LoginContext = createContext<UserContextType | undefined>(undefined);
 
 export const LoginProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(true); // Start as true to match SSR
 
     const fetchUser = async () => {
+        if (typeof window === 'undefined') return; // Skip on server-side
+
         try {
-            const res = await fetch(
-                "/api/users/me?_t=" + new Date().getTime(),
-                {
-                    credentials: "include",
-                    cache: "no-cache",
-                    headers: {
-                        "Cache-Control": "no-cache, no-store, must-revalidate",
-                        Pragma: "no-cache",
-                    },
-                }
-            );
+            const res = await fetch("http://localhost:3001/api/users/me", {
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json",
+                },
+            });
 
             if (res.ok) {
                 const userData = await res.json();
-                console.log("Fetched user data:", userData);
                 setUser(userData);
             } else {
-                console.log("Not authenticated, clearing user state");
                 setUser(null);
             }
         } catch (error) {
-            console.error("Failed to fetch user", error);
+            console.error("Error fetching user:", error);
             setUser(null);
-        } finally {
-            setIsLoading(false);
         }
     };
 
     const logout = async () => {
         try {
-            await fetch("/api/users/logout", {
+            const res = await fetch("http://localhost:3001/api/users/logout", {
                 method: "POST",
                 credentials: "include",
             });
-            setUser(null);
+            
+            if (res.ok) {
+                setUser(null);
+            }
         } catch (error) {
-            console.error("Logout failed", error);
+            console.error("Error during logout:", error);
         }
     };
 
     useEffect(() => {
-        fetchUser();
+        // Set initial state to match SSR
+        setIsInitialized(false);
+        
+        let mounted = true;
+
+        const initializeAuth = async () => {
+            try {
+                await fetchUser();
+            } catch (error) {
+                console.error("Error during initialization:", error);
+            } finally {
+                if (mounted) {
+                    setIsInitialized(true);
+                }
+            }
+        };
+
+        initializeAuth();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
-    // Don't render children until we've checked the user's authentication status
-    if (isLoading) {
-        return null; // Or a loading spinner
-    }
+    const value = {
+        user,
+        setUser,
+        fetchUser,
+        logout,
+        isInitialized
+    };
 
     return (
-        <LoginContext.Provider value={{ user, setUser, fetchUser, logout }}>
+        <LoginContext.Provider value={value}>
             {children}
         </LoginContext.Provider>
     );
@@ -83,7 +102,8 @@ export const LoginProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useLogin = () => {
     const context = useContext(LoginContext);
-    if (!context)
+    if (!context) {
         throw new Error("useLogin must be used within a LoginProvider");
+    }
     return context;
 };

@@ -80,4 +80,14 @@ exports.deleteDoctor = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Error deleting doctor', error: error.message });
     }
+};
+
+exports.getDoctorById = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const doctor = await db.one('SELECT * FROM doctors WHERE doctor_id = $1', [id]);
+        res.json(doctor);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching doctor', error: error.message });
+    }
 }; 
