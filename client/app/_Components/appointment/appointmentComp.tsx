@@ -77,6 +77,11 @@ export default function Appointment({ doctor }: AppointmentProps) {
     const [error, setError] = useState("");
     const [selectedTime, setSelectedTime] = useState<string | null>(null);
     const [serverSlots, setServerSlots] = useState<ServerSlot[]>([]);
+    const [appointments, setAppointments] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalAppointments, setTotalAppointments] = useState(0);
+    const itemsPerPage = 5;
 
     useEffect(() => {
         let isMounted = true;
@@ -302,6 +307,49 @@ export default function Appointment({ doctor }: AppointmentProps) {
     const availableMorningCount = morningSlots.filter(slot => slot.isAvailable).length;
     const availableEveningCount = eveningSlots.filter(slot => slot.isAvailable).length;
 
+    // Add this function to handle page changes
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
+    };
+
+    // Add this effect to fetch appointments with pagination
+    useEffect(() => {
+        const fetchAppointments = async () => {
+            try {
+                setLoading(true);
+                setError("");
+                const response = await fetch(
+                    `http://localhost:3001/api/appointments/my-appointments?page=${currentPage}&limit=${itemsPerPage}`,
+                    {
+                        credentials: 'include'
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch appointments');
+                }
+
+                const data = await response.json();
+                if (data.ok) {
+                    setAppointments(data.data.rows);
+                    setTotalPages(data.data.totalPages);
+                    setTotalAppointments(data.data.total);
+                } else {
+                    throw new Error(data.message || 'Failed to fetch appointments');
+                }
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'An error occurred');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (user) {
+            fetchAppointments();
+        }
+    }, [currentPage, user]);
+
     return (
         <main className={style.main}>
             <div className={style.info}>
@@ -344,20 +392,20 @@ export default function Appointment({ doctor }: AppointmentProps) {
                         <div className={style.loading}>Loading slots...</div>
                     ) : (
                         <>
-                            <div className={style.availableSlots}>
-                                <div className={style.sunCountOfSlots}>
-                                    <div className={style.sunMorning}>
-                                        <div className={style.sun}></div>
-                                        <div className={style.morning}>Morning</div>
-                                    </div>
-                                    <div className={style.countOfSlots}>
+                    <div className={style.availableSlots}>
+                        <div className={style.sunCountOfSlots}>
+                            <div className={style.sunMorning}>
+                                <div className={style.sun}></div>
+                                <div className={style.morning}>Morning</div>
+                            </div>
+                            <div className={style.countOfSlots}>
                                         <span>Slots {availableMorningCount}</span>
-                                    </div>
-                                </div>
-                                <div className={style.horizontalLine}></div>
-                                <div className={style.availableSlotsContainer}>
+                            </div>
+                        </div>
+                        <div className={style.horizontalLine}></div>
+                        <div className={style.availableSlotsContainer}>
                                     {morningSlots.map((slot, index) => (
-                                        <button
+                                    <button
                                             key={index}
                                             onClick={() => handleSlotSelection(slot)}
                                             className={`${style.slotButton} ${
@@ -366,25 +414,25 @@ export default function Appointment({ doctor }: AppointmentProps) {
                                             disabled={!slot.isAvailable}
                                         >
                                             {slot.time}
-                                        </button>
+                                    </button>
                                     ))}
-                                </div>
-                            </div>
+                        </div>
+                    </div>
 
-                            <div className={style.availableSlots}>
-                                <div className={style.sunCountOfSlots}>
-                                    <div className={style.sunMorning}>
-                                        <div className={style.sunset}></div>
-                                        <div className={style.morning}>Evening</div>
-                                    </div>
-                                    <div className={style.countOfSlots}>
+                    <div className={style.availableSlots}>
+                        <div className={style.sunCountOfSlots}>
+                            <div className={style.sunMorning}>
+                                <div className={style.sunset}></div>
+                                <div className={style.morning}>Evening</div>
+                            </div>
+                            <div className={style.countOfSlots}>
                                         <span>Slots {availableEveningCount}</span>
-                                    </div>
-                                </div>
-                                <div className={style.horizontalLine}></div>
-                                <div className={style.availableSlotsContainer}>
+                            </div>
+                        </div>
+                        <div className={style.horizontalLine}></div>
+                        <div className={style.availableSlotsContainer}>
                                     {eveningSlots.map((slot, index) => (
-                                        <button
+                                    <button
                                             key={index}
                                             onClick={() => handleSlotSelection(slot)}
                                             className={`${style.slotButton} ${
@@ -393,10 +441,10 @@ export default function Appointment({ doctor }: AppointmentProps) {
                                             disabled={!slot.isAvailable}
                                         >
                                             {slot.time}
-                                        </button>
+                                    </button>
                                     ))}
-                                </div>
-                            </div>
+                        </div>
+                    </div>
                         </>
                     )}
                     
@@ -409,6 +457,39 @@ export default function Appointment({ doctor }: AppointmentProps) {
                     </button>
                 </div>
             </div>
+            
+            {/* Add this before the closing main tag */}
+            {totalPages > 1 && (
+                <div className={style.pagination}>
+                    <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={style.paginationButton}
+                    >
+                        Previous
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                        <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`${style.paginationButton} ${
+                                currentPage === pageNum ? style.activePage : ''
+                            }`}
+                        >
+                            {pageNum}
+                        </button>
+                    ))}
+
+                    <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={style.paginationButton}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
         </main>
     );
 }

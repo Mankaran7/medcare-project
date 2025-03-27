@@ -1,12 +1,39 @@
 const db = require('../../config/db');
+
 exports.getAllDoctors = async (req, res) => {
     try {
-        const doctors = await db.any('SELECT * FROM doctors');
-        res.json(doctors);
+        const { page = 1, limit = 6 } = req.query;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const totalCount = await db.one(
+            'SELECT COUNT(*) as total FROM doctors'
+        );
+
+        // Get paginated doctors
+        const doctors = await db.any(
+            'SELECT * FROM doctors ORDER BY doctor_id LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json({
+            ok: true,
+            data: {
+                rows: doctors,
+                total: parseInt(totalCount.total),
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(parseInt(totalCount.total) / limit)
+            }
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching doctors', error: error.message });
+        res.status(500).json({ 
+            ok: false,
+            message: 'Error fetching doctors',
+            error: error.message 
+        });
     }
 };
+
 exports.addDoctor = async (req, res) => {
     try {
         const {
@@ -53,6 +80,7 @@ exports.addDoctor = async (req, res) => {
         });
     }
 };
+
 exports.updateDoctor = async (req, res) => {
     try {
         const { id } = req.params;

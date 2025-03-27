@@ -76,3 +76,4 @@ export default function DynamicBookingPage() {
     if (!doctor) return <div>Loading...</div>;
 
     return <Appointment doctor={doctor} />;
+}

@@ -89,9 +89,19 @@ const bookAppointment = async (req, res) => {
     }
 };
 
-// Get user's appointments
+// Get user's appointments with pagination
 const getMyAppointments = async (req, res) => {
     try {
+        const { page = 1, limit = 5 } = req.query;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const totalCount = await db.one(
+            'SELECT COUNT(*) as total FROM appointments WHERE patient_name = $1',
+            [req.user.user_name]
+        );
+
+        // Get paginated appointments
         const appointments = await db.any(
             `SELECT 
                 a.*,
@@ -108,14 +118,26 @@ const getMyAppointments = async (req, res) => {
             JOIN doctors d ON a.doctor_id = d.id
             JOIN slots s ON a.slot_id = s.id
             WHERE a.patient_name = $1
-            ORDER BY s.date DESC, s.time_slot DESC`,
-            [req.user.user_name]
+            ORDER BY s.date DESC, s.time_slot DESC
+            LIMIT $2 OFFSET $3`,
+            [req.user.user_name, limit, offset]
         );
 
-        res.json(appointments);
+        res.json({
+            ok: true,
+            data: {
+                rows: appointments,
+                total: parseInt(totalCount.total),
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(parseInt(totalCount.total) / limit)
+            }
+        });
     } catch (error) {
         console.error('Error getting appointments:', error);
-        res.status(500).json({ message: 'Error getting appointments' });
+        res.status(500).json({ 
+            ok: false,
+            message: 'Error getting appointments' 
+        });
     }
 };
 

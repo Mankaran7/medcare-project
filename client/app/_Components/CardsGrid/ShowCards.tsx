@@ -13,13 +13,17 @@ interface Doctor {
     speciality: string;
     experience_years: number;
     location: string;
-    rating?: number; // Optional since it's not in DB
+    rating?: number;
 }
 
 export default function ShowCards() {
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalDoctors, setTotalDoctors] = useState(0);
+    const itemsPerPage = 6;
     
     const [filters, setFilters] = useState({
         rating: "any",
@@ -29,28 +33,38 @@ export default function ShowCards() {
 
     useEffect(() => {
         fetchDoctors();
-    }, []);
+    }, [currentPage]); // Add currentPage as dependency
 
     const fetchDoctors = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:3001/api/admin/doctors/public');
+            const response = await fetch(`http://localhost:3001/api/admin/doctors/public?page=${currentPage}&limit=${itemsPerPage}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch doctors');
             }
             const data = await response.json();
-            // Add default rating if not present
-            const doctorsWithRating = data.map((doc: Doctor) => ({
-                ...doc,
-                rating: doc.rating || 4 // Default rating of 4
-            }));
-            setDoctors(doctorsWithRating);
+            if (data.ok) {
+                // Add default rating if not present
+                const doctorsWithRating = data.data.rows.map((doc: Doctor) => ({
+                    ...doc,
+                    rating: doc.rating || 4 // Default rating of 4
+                }));
+                setDoctors(doctorsWithRating);
+                setTotalPages(data.data.totalPages);
+                setTotalDoctors(data.data.total);
+            } else {
+                throw new Error(data.message || 'Failed to fetch doctors');
+            }
         } catch (err) {
             setError("Failed to load doctors");
             console.error(err);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
     };
 
     const resetFilters = () => {
@@ -82,7 +96,7 @@ export default function ShowCards() {
             <Search />
             <div className={styles.infoText}>
                 <p className={styles.docCount}>
-                    {doctors.length} doctors available
+                    {totalDoctors} doctors available
                 </p>
                 <p className={styles.subText}>
                     Book appointments with minimum wait-time & verified doctor
@@ -102,10 +116,11 @@ export default function ShowCards() {
                         </button>
                     </div>
 
+                    {/* Rating Filter */}
                     <div className={styles.filterSection}>
-                        <h4 className={styles.filterTitle}>Rating</h4>
+                        <p>Rating</p>
                         <div className={styles.filterOptions}>
-                            <label className={styles.filterOption}>
+                            <label>
                                 <input
                                     type="radio"
                                     name="rating"
@@ -113,136 +128,54 @@ export default function ShowCards() {
                                     checked={filters.rating === "any"}
                                     onChange={handleFilterChange}
                                 />
-                                <span>Show All</span>
+                                Show All
                             </label>
-
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    value="1"
-                                    checked={filters.rating === "1"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>1 star</span>
-                            </label>
-
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    value="2"
-                                    checked={filters.rating === "2"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>2 star</span>
-                            </label>
-
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    value="3"
-                                    checked={filters.rating === "3"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>3 star</span>
-                            </label>
-
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    value="4"
-                                    checked={filters.rating === "4"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>4 star</span>
-                            </label>
-
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
-                                    value="5"
-                                    checked={filters.rating === "5"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>5 star</span>
-                            </label>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <label key={star}>
+                                    <input
+                                        type="radio"
+                                        name="rating"
+                                        value={star}
+                                        checked={filters.rating === star.toString()}
+                                        onChange={handleFilterChange}
+                                    />
+                                    {star} star
+                                </label>
+                            ))}
                         </div>
                     </div>
 
+                    {/* Experience Filter */}
                     <div className={styles.filterSection}>
-                        <h4 className={styles.filterTitle}>Experience</h4>
+                        <p>Experience</p>
                         <div className={styles.filterOptions}>
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
-                                    value="15+"
-                                    checked={filters.experience === "15+"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>15+ years</span>
-                            </label>
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
-                                    value="10-15"
-                                    checked={filters.experience === "10-15"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>10-15 years</span>
-                            </label>
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
-                                    value="5-10"
-                                    checked={filters.experience === "5-10"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>5-10 years</span>
-                            </label>
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
-                                    value="3-5"
-                                    checked={filters.experience === "3-5"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>3-5 years</span>
-                            </label>
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
-                                    value="1-3"
-                                    checked={filters.experience === "1-3"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>1-3 years</span>
-                            </label>
-                            <label className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
-                                    value="0-1"
-                                    checked={filters.experience === "0-1"}
-                                    onChange={handleFilterChange}
-                                />
-                                <span>0-1 years</span>
-                            </label>
+                            {[
+                                "15+",
+                                "10-15",
+                                "5-10",
+                                "3-5",
+                                "1-3",
+                                "0-1",
+                            ].map((exp) => (
+                                <label key={exp}>
+                                    <input
+                                        type="radio"
+                                        name="experience"
+                                        value={exp}
+                                        checked={filters.experience === exp}
+                                        onChange={handleFilterChange}
+                                    />
+                                    {exp} years
+                                </label>
+                            ))}
                         </div>
                     </div>
 
+                    {/* Gender Filter */}
                     <div className={styles.filterSection}>
-                        <h4 className={styles.filterTitle}>Gender</h4>
+                        <p>Gender</p>
                         <div className={styles.filterOptions}>
-                            <label className={styles.filterOption}>
+                            <label>
                                 <input
                                     type="radio"
                                     name="gender"
@@ -250,9 +183,9 @@ export default function ShowCards() {
                                     checked={filters.gender === "any"}
                                     onChange={handleFilterChange}
                                 />
-                                <span>Show all</span>
+                                Show All
                             </label>
-                            <label className={styles.filterOption}>
+                            <label>
                                 <input
                                     type="radio"
                                     name="gender"
@@ -260,9 +193,9 @@ export default function ShowCards() {
                                     checked={filters.gender === "male"}
                                     onChange={handleFilterChange}
                                 />
-                                <span>Male</span>
+                                Male
                             </label>
-                            <label className={styles.filterOption}>
+                            <label>
                                 <input
                                     type="radio"
                                     name="gender"
@@ -270,28 +203,63 @@ export default function ShowCards() {
                                     checked={filters.gender === "female"}
                                     onChange={handleFilterChange}
                                 />
-                                <span>Female</span>
+                                Female
                             </label>
                         </div>
                     </div>
-                    <button className={styles.applyBtn}>Apply Filters</button>
                 </div>
 
                 <div className={styles.gridContainer}>
-                    {doctors.map((doctor) => (
-                        <CardComp 
-                            key={doctor.doctor_id} 
-                            doctor={{
-                                id: doctor.doctor_id,
-                                name: doctor.doctor_name,
-                                degree: doctor.degree,
-                                specialty: doctor.speciality,
-                                experience: `${doctor.experience_years} Years Experience`,
-                                rating: doctor.rating || 4,
-                                image: doctor.doctor_photo || '/default-doctor.png'
-                            }} 
-                        />
-                    ))}
+                    {/* Cards Grid */}
+                    <div className={styles.cardsGrid}>
+                        {doctors.map((doctor) => (
+                            <CardComp 
+                                key={doctor.doctor_id} 
+                                doctor={{
+                                    id: doctor.doctor_id,
+                                    name: doctor.doctor_name,
+                                    degree: doctor.degree,
+                                    specialty: doctor.speciality,
+                                    experience: `${doctor.experience_years} Years Experience`,
+                                    rating: doctor.rating || 4,
+                                    image: doctor.doctor_photo || '/default-doctor.png'
+                                }} 
+                            />
+                        ))}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className={styles.pagination}>
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className={styles.paginationButton}
+                            >
+                                Previous
+                            </button>
+
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                                <button
+                                    key={pageNum}
+                                    onClick={() => handlePageChange(pageNum)}
+                                    className={`${styles.paginationButton} ${
+                                        currentPage === pageNum ? styles.activePage : ''
+                                    }`}
+                                >
+                                    {pageNum}
+                                </button>
+                            ))}
+
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className={styles.paginationButton}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
