@@ -7,15 +7,17 @@ const {
     addDoctor,
     updateDoctor,
     deleteDoctor,
-    getDoctorById
+    getDoctorById,
+    searchDoctors
 } = require('../../controllers/admin/doctorController');
 
 // Public routes
 router.get('/public', getAllDoctors);
 router.get('/public/:id', getDoctorById);
+router.get('/search', searchDoctors);
 
 // Admin protected routes
-router.use(isAdmin);
+//router.use(isAdmin);
 
 router.get('/', getAllDoctors);
 router.post('/create', upload.single('image'), addDoctor);

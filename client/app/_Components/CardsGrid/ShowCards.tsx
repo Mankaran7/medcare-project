@@ -13,58 +13,87 @@ interface Doctor {
     speciality: string;
     experience_years: number;
     location: string;
-    rating?: number;
+    ratings?: number;
+    gender?: string;
+}
+
+interface DoctorsResponse {
+    ok: boolean;
+    data: {
+        rows: Doctor[];
+        total: number;
+    };
+    message?: string;
 }
 
 export default function ShowCards() {
-    const [doctors, setDoctors] = useState<Doctor[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalDoctors, setTotalDoctors] = useState(0);
-    const itemsPerPage = 6;
-    
     const [filters, setFilters] = useState({
         rating: "any",
         experience: "15+",
         gender: "any",
     });
 
+    const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [totalDoctors, setTotalDoctors] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
+
     useEffect(() => {
         fetchDoctors();
-    }, [currentPage]); // Add currentPage as dependency
+    }, [currentPage, filters]);
 
     const fetchDoctors = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://localhost:3001/api/admin/doctors/public?page=${currentPage}&limit=${itemsPerPage}`);
+            setError(null);
+
+            const pageNum = Math.max(1, currentPage);
+            const queryParams = new URLSearchParams({
+                page: pageNum.toString(),
+                ...(filters.rating !== "any" && { rating: filters.rating }),
+                ...(filters.experience !== "any" && { experience: filters.experience }),
+                ...(filters.gender !== "any" && { gender: filters.gender })
+            });
+
+            const response = await fetch(`/api/admin/doctors/public?${queryParams}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
             if (!response.ok) {
-                throw new Error('Failed to fetch doctors');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
-            const data = await response.json();
-            if (data.ok) {
-                // Add default rating if not present
-                const doctorsWithRating = data.data.rows.map((doc: Doctor) => ({
-                    ...doc,
-                    rating: doc.rating || 4 // Default rating of 4
-                }));
-                setDoctors(doctorsWithRating);
-                setTotalPages(data.data.totalPages);
-                setTotalDoctors(data.data.total);
-            } else {
-                throw new Error(data.message || 'Failed to fetch doctors');
+
+            const data: DoctorsResponse = await response.json();
+
+            if (!data.ok) {
+                throw new Error(data.message || "Failed to fetch doctors");
             }
+
+            if (!data.data?.rows) {
+                throw new Error("Invalid data format received from server");
+            }
+
+            const doctorsWithRating = data.data.rows.map((doc: Doctor) => ({
+                ...doc,
+                rating: doc.ratings || 4
+            }));
+
+            setDoctors(doctorsWithRating);
+            setTotalDoctors(data.data.total || 0);
         } catch (err) {
-            setError("Failed to load doctors");
-            console.error(err);
+            console.error("Error fetching doctors:", err);
+            setError(err instanceof Error ? err.message : "An error occurred while fetching doctors");
+            setDoctors([]);
+            setTotalDoctors(0);
         } finally {
             setLoading(false);
         }
-    };
-
-    const handlePageChange = (pageNumber: number) => {
-        setCurrentPage(pageNumber);
     };
 
     const resetFilters = () => {
@@ -73,6 +102,7 @@ export default function ShowCards() {
             experience: "15+",
             gender: "any",
         });
+        setCurrentPage(1);
     };
 
     const handleFilterChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -81,6 +111,53 @@ export default function ShowCards() {
             ...prevFilters,
             [name]: value,
         }));
+        setCurrentPage(1);
+    };
+
+    const handlePageChange = (pageNumber: number) => {
+        setCurrentPage(pageNumber);
+    };
+
+    const handleSearch = async (searchTerm: string): Promise<void> => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const queryParams = new URLSearchParams({
+                q: searchTerm,
+                page: currentPage.toString()
+            });
+
+            const response = await fetch(`/api/admin/doctors/search?${queryParams}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to search doctors');
+            }
+
+            const data: DoctorsResponse = await response.json();
+            if (!data.ok) {
+                throw new Error(data.message || "Failed to search doctors");
+            }
+
+            const doctorsWithRating = data.data.rows.map((doc: Doctor) => ({
+                ...doc,
+                ratings: doc.ratings || 4
+            }));
+
+            setDoctors(doctorsWithRating);
+            setTotalDoctors(data.data.total || 0);
+            setCurrentPage(1);
+        } catch (err) {
+            console.error("Error searching doctors:", err);
+            setError(err instanceof Error ? err.message : "An error occurred while searching");
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (loading) {
@@ -91,16 +168,17 @@ export default function ShowCards() {
         return <div className={styles.error}>{error}</div>;
     }
 
+    const totalPages = Math.max(1, Math.ceil(totalDoctors / itemsPerPage));
+
     return (
         <div className={styles.pageContainer}>
-            <Search />
+            <Search handleSearch={handleSearch} />
             <div className={styles.infoText}>
                 <p className={styles.docCount}>
                     {totalDoctors} doctors available
                 </p>
                 <p className={styles.subText}>
-                    Book appointments with minimum wait-time & verified doctor
-                    details
+                    Book appointments with minimum wait-time & verified doctor details
                 </p>
             </div>
 
@@ -108,19 +186,15 @@ export default function ShowCards() {
                 <div className={styles.filtersContainer}>
                     <div className={styles.filterHeader}>
                         <p>Filter By:</p>
-                        <button
-                            onClick={resetFilters}
-                            className={styles.resetButton}
-                        >
+                        <button onClick={resetFilters} className={styles.resetButton}>
                             Reset
                         </button>
                     </div>
 
-                    {/* Rating Filter */}
                     <div className={styles.filterSection}>
-                        <p>Rating</p>
+                        <h4 className={styles.filterTitle}>Rating</h4>
                         <div className={styles.filterOptions}>
-                            <label>
+                            <label className={styles.filterOption}>
                                 <input
                                     type="radio"
                                     name="rating"
@@ -128,26 +202,25 @@ export default function ShowCards() {
                                     checked={filters.rating === "any"}
                                     onChange={handleFilterChange}
                                 />
-                                Show All
+                                <span>Show All</span>
                             </label>
                             {[1, 2, 3, 4, 5].map((star) => (
-                                <label key={star}>
+                                <label key={star} className={styles.filterOption}>
                                     <input
                                         type="radio"
                                         name="rating"
-                                        value={star}
+                                        value={star.toString()}
                                         checked={filters.rating === star.toString()}
                                         onChange={handleFilterChange}
                                     />
-                                    {star} star
+                                    <span>{star} star</span>
                                 </label>
                             ))}
                         </div>
                     </div>
 
-                    {/* Experience Filter */}
                     <div className={styles.filterSection}>
-                        <p>Experience</p>
+                        <h4 className={styles.filterTitle}>Experience</h4>
                         <div className={styles.filterOptions}>
                             {[
                                 "15+",
@@ -157,7 +230,7 @@ export default function ShowCards() {
                                 "1-3",
                                 "0-1",
                             ].map((exp) => (
-                                <label key={exp}>
+                                <label key={exp} className={styles.filterOption}>
                                     <input
                                         type="radio"
                                         name="experience"
@@ -165,17 +238,16 @@ export default function ShowCards() {
                                         checked={filters.experience === exp}
                                         onChange={handleFilterChange}
                                     />
-                                    {exp} years
+                                    <span>{exp} years</span>
                                 </label>
                             ))}
                         </div>
                     </div>
 
-                    {/* Gender Filter */}
                     <div className={styles.filterSection}>
-                        <p>Gender</p>
+                        <h4 className={styles.filterTitle}>Gender</h4>
                         <div className={styles.filterOptions}>
-                            <label>
+                            <label className={styles.filterOption}>
                                 <input
                                     type="radio"
                                     name="gender"
@@ -183,9 +255,9 @@ export default function ShowCards() {
                                     checked={filters.gender === "any"}
                                     onChange={handleFilterChange}
                                 />
-                                Show All
+                                <span>Show all</span>
                             </label>
-                            <label>
+                            <label className={styles.filterOption}>
                                 <input
                                     type="radio"
                                     name="gender"
@@ -193,9 +265,9 @@ export default function ShowCards() {
                                     checked={filters.gender === "male"}
                                     onChange={handleFilterChange}
                                 />
-                                Male
+                                <span>Male</span>
                             </label>
-                            <label>
+                            <label className={styles.filterOption}>
                                 <input
                                     type="radio"
                                     name="gender"
@@ -203,14 +275,13 @@ export default function ShowCards() {
                                     checked={filters.gender === "female"}
                                     onChange={handleFilterChange}
                                 />
-                                Female
+                                <span>Female</span>
                             </label>
                         </div>
                     </div>
                 </div>
 
                 <div className={styles.gridContainer}>
-                    {/* Cards Grid */}
                     <div className={styles.cardsGrid}>
                         {doctors.map((doctor) => (
                             <CardComp 
@@ -221,14 +292,13 @@ export default function ShowCards() {
                                     degree: doctor.degree,
                                     specialty: doctor.speciality,
                                     experience: `${doctor.experience_years} Years Experience`,
-                                    rating: doctor.rating || 4,
+                                    ratings: doctor.ratings || 4,
                                     image: doctor.doctor_photo || '/default-doctor.png'
                                 }} 
                             />
                         ))}
                     </div>
 
-                    {/* Pagination */}
                     {totalPages > 1 && (
                         <div className={styles.pagination}>
                             <button

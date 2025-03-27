@@ -21,7 +21,7 @@ interface Doctor {
     degree: string;
     specialty: string;
     experience: string;
-    rating: number;
+    ratings: number;
     image: string;
 }
 
@@ -71,7 +71,7 @@ export default function CardComp({ doctor }: CardProps) {
                 {Array.from({ length: 5 }, (_, index) => (
                     <Image
                         key={index}
-                        src={index < doctor.rating ? "/star.svg" : "/blankStar.svg"}
+                        src={index < doctor.ratings ? "/star.svg" : "/blankStar.svg"}
                         alt="star"
                         width={20}
                         height={20}
