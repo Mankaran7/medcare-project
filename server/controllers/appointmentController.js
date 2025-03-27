@@ -11,13 +11,13 @@ const getAvailableSlots = async (req, res) => {
             [doctorId, date]
         );
 
-        // Get booked appointments for that doctor and date
+        // Get slots with approved appointments for that doctor and date
         const bookedSlots = await db.any(
-            'SELECT slot_id FROM appointments WHERE doctor_id = $1 AND appointment_date = $2',
-            [doctorId, date]
+            'SELECT slot_id FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND status = $3',
+            [doctorId, date, 'approved']
         );
 
-        // Mark slots as unavailable if they're booked
+        // Mark slots as unavailable only if they have approved appointments
         const availableSlots = slots.map(slot => ({
             ...slot,
             is_available: !bookedSlots.some(booked => booked.slot_id === slot.id)
@@ -33,33 +33,54 @@ const getAvailableSlots = async (req, res) => {
 // Book an appointment
 const bookAppointment = async (req, res) => {
     try {
-        const { doctorId, slotId, mode, patientName } = req.body;
+        const { doctorId, timeSlot, date, mode, patientName } = req.body;
 
         if (!patientName) {
             return res.status(400).json({ message: 'Patient name is required' });
         }
 
-        // Check if slot is available
-        const slotCheck = await db.oneOrNone(
-            'SELECT date, time_slot FROM slots WHERE id = $1 AND doctor_id = $2 AND is_available = true',
-            [slotId, doctorId]
+        // First, try to get the existing slot
+        let slot = await db.oneOrNone(
+            'SELECT id, is_available FROM slots WHERE doctor_id = $1 AND date = $2 AND time_slot = $3',
+            [doctorId, date, timeSlot]
         );
 
-        if (!slotCheck) {
-            return res.status(400).json({ message: 'Slot is not available' });
+        // If slot doesn't exist, create it
+        if (!slot) {
+            slot = await db.one(
+                'INSERT INTO slots (doctor_id, date, time_slot, is_available) VALUES ($1, $2, $3, true) RETURNING id, is_available',
+                [doctorId, date, timeSlot]
+            );
         }
 
-        // Book the appointment
-        const appointment = await db.one(
-            'INSERT INTO appointments (doctor_id, patient_name, slot_id, mode, booked_at, appointment_date, mode_of_appointment) VALUES ($1, $2, $3, $4, NOW(), $5, $6) RETURNING *',
-            [doctorId, patientName, slotId, mode, slotCheck.date, mode]
+        // Check if slot already has an approved appointment
+        const existingApprovedAppointment = await db.oneOrNone(
+            'SELECT * FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND slot_id = $3 AND status = $4',
+            [doctorId, date, slot.id, 'approved']
         );
 
-        // Update slot availability
-        await db.none(
-            'UPDATE slots SET is_available = false WHERE id = $1',
-            [slotId]
+        if (existingApprovedAppointment) {
+            return res.status(400).json({ message: 'Slot is already booked' });
+        }
+
+        // Check if the user already has a pending appointment for this slot
+        const existingPendingAppointment = await db.oneOrNone(
+            'SELECT * FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND slot_id = $3 AND patient_name = $4 AND status = $5',
+            [doctorId, date, slot.id, patientName, 'pending']
         );
+
+        if (existingPendingAppointment) {
+            return res.status(400).json({ message: 'You already have a pending appointment for this slot' });
+        }
+
+        // Book the appointment with pending status
+        const appointment = await db.one(
+            'INSERT INTO appointments (doctor_id, patient_name, slot_id, mode, booked_at, appointment_date, mode_of_appointment, status) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7) RETURNING *',
+            [doctorId, patientName, slot.id, mode, date, mode, 'pending']
+        );
+
+        // Note: We don't update slot availability until the appointment is approved
+        // This way other patients can still book the same slot until admin approves one
 
         res.status(201).json(appointment);
     } catch (error) {
@@ -76,7 +97,13 @@ const getMyAppointments = async (req, res) => {
                 a.*,
                 d.name as doctor_name,
                 s.time_slot,
-                s.date
+                s.date,
+                CASE 
+                    WHEN a.status = 'pending' THEN 'Waiting for approval'
+                    WHEN a.status = 'approved' THEN 'Confirmed'
+                    WHEN a.status = 'rejected' THEN 'Rejected'
+                    WHEN a.status = 'cancelled' THEN 'Cancelled'
+                END as status_display
             FROM appointments a
             JOIN doctors d ON a.doctor_id = d.id
             JOIN slots s ON a.slot_id = s.id

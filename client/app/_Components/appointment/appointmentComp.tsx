@@ -31,6 +31,14 @@ interface TimeSlot {
     id?: number;
 }
 
+interface ServerSlot {
+    id: number;
+    doctor_id: number;
+    date: string;
+    time_slot: string;
+    is_available: boolean;
+}
+
 export default function Appointment({ doctor }: AppointmentProps) {
     const router = useRouter();
     const { user } = useLogin();
@@ -67,69 +75,108 @@ export default function Appointment({ doctor }: AppointmentProps) {
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [selectedTime, setSelectedTime] = useState<string | null>(null);
+    const [serverSlots, setServerSlots] = useState<ServerSlot[]>([]);
 
     useEffect(() => {
+        let isMounted = true;
+        let controller = new AbortController();
+        
+        const fetchAvailableSlots = async () => {
+            try {
+                if (!isMounted) return;
+                
+                // Don't set loading true immediately to prevent quick flashes
+                const loadingTimeout = setTimeout(() => {
+                    if (isMounted) setLoading(true);
+                }, 300); // Only show loading if fetch takes more than 300ms
+
+                setError("");
+                const formattedDate = selectedDate.toISOString().split('T')[0];
+                const response = await fetch(
+                    `http://localhost:3001/api/appointments/available-slots/${doctor.id}/${formattedDate}`,
+                    { signal: controller.signal }
+                );
+                
+                clearTimeout(loadingTimeout);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch slots');
+                }
+
+                const availableSlots: ServerSlot[] = await response.json();
+                
+                if (!isMounted) return;
+
+                // Create a cache of server slots for faster lookup
+                const serverSlotMap = new Map(
+                    availableSlots.map(slot => {
+                        const [hours, minutes] = slot.time_slot.split(':');
+                        const hour = parseInt(hours);
+                        const minute = minutes;
+                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                        const hour12 = hour % 12 || 12;
+                        const time = `${hour12}:${minute} ${ampm}`;
+                        return [time, slot];
+                    })
+                );
+
+                // Update slots using the cache
+                const updatedMorningSlots = defaultMorningSlots.map(slot => ({
+                    ...slot,
+                    isAvailable: serverSlotMap.has(slot.time) ? serverSlotMap.get(slot.time)!.is_available : true
+                }));
+
+                const updatedEveningSlots = defaultEveningSlots.map(slot => ({
+                    ...slot,
+                    isAvailable: serverSlotMap.has(slot.time) ? serverSlotMap.get(slot.time)!.is_available : true
+                }));
+
+                setMorningSlots(updatedMorningSlots);
+                setEveningSlots(updatedEveningSlots);
+            } catch (err: any) {
+                if (err.name === 'AbortError') return;
+                
+                if (isMounted) {
+                    setError("Failed to load available slots");
+                    console.error(err);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchAvailableSlots();
+        
+        return () => {
+            isMounted = false;
+            controller.abort();
+            setSelectedTime(null);
+        };
     }, [selectedDate, doctor.id]);
 
-    const fetchAvailableSlots = async () => {
-        try {
-            setLoading(true);
-            setError("");
-            const formattedDate = selectedDate.toISOString().split('T')[0];
-            const response = await fetch(
-                `http://localhost:3001/api/appointments/available-slots/${doctor.id}/${formattedDate}`
-            );
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch slots');
-            }
-
-            const dbSlots = await response.json();
-            
-            // Update morning slots availability
-            const updatedMorningSlots = defaultMorningSlots.map(slot => {
-                const dbSlot = dbSlots.find((s: any) => formatTime(s.time_slot) === slot.time);
-                return {
-                    ...slot,
-                    id: dbSlot?.id,
-                    isAvailable: dbSlot ? dbSlot.is_available : false
-                };
-            });
-
-            // Update evening slots availability
-            const updatedEveningSlots = defaultEveningSlots.map(slot => {
-                const dbSlot = dbSlots.find((s: any) => formatTime(s.time_slot) === slot.time);
-                return {
-                    ...slot,
-                    id: dbSlot?.id,
-                    isAvailable: dbSlot ? dbSlot.is_available : false
-                };
-            });
-
-            setMorningSlots(updatedMorningSlots);
-            setEveningSlots(updatedEveningSlots);
-        } catch (err) {
-            setError("Failed to load available slots");
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleDateChange = (date: Date) => {
-        setSelectedDate(date);
-        setSelectedSlot(null);
+        // Only update if the date is actually different
+        if (date.getTime() !== selectedDate.getTime()) {
+            setSelectedDate(date);
+            setSelectedTime(null);
+            setSelectedSlot(null);
+        }
     };
 
     const handleToggle = (isOffline: boolean) => {
         setOfflineMode(isOffline);
     };
 
-    const handleSlotSelection = (slotId: number | undefined) => {
-        if (slotId) {
-            setSelectedSlot(slotId);
+    const handleSlotSelection = (slot: TimeSlot) => {
+        if (!user) {
+            router.push('/login');
+            return;
         }
+        setSelectedTime(slot.time);
+        setSelectedSlot(null);
     };
 
     const formatTime = (time: string) => {
@@ -142,11 +189,23 @@ export default function Appointment({ doctor }: AppointmentProps) {
 
     const handleNext = async () => {
         if (!user) {
-            router.push('/login');
+            // Save the current appointment details to localStorage
+            const appointmentIntent = {
+                doctorId: doctor.id,
+                doctorName: doctor.name,
+                date: selectedDate.toISOString(),
+                time: selectedTime,
+                mode: offlineMode ? 'offline' : 'online'
+            };
+            localStorage.setItem('appointmentIntent', JSON.stringify(appointmentIntent));
+            
+            // Redirect to login with return URL
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            router.push(`/login?returnUrl=${returnUrl}`);
             return;
         }
 
-        if (!selectedSlot) {
+        if (!selectedTime) {
             setError("Please select a time slot");
             return;
         }
@@ -155,6 +214,16 @@ export default function Appointment({ doctor }: AppointmentProps) {
             setLoading(true);
             setError("");
             
+            // Convert selected time to 24-hour format for the server
+            const [time, period] = selectedTime.split(' ');
+            const [hours, minutes] = time.split(':');
+            let hour = parseInt(hours);
+            if (period === 'PM' && hour !== 12) hour += 12;
+            if (period === 'AM' && hour === 12) hour = 0;
+            const timeSlot = `${hour.toString().padStart(2, '0')}:${minutes}`;
+            
+            const formattedDate = selectedDate.toISOString().split('T')[0];
+
             const response = await fetch('http://localhost:3001/api/appointments/book', {
                 method: 'POST',
                 headers: {
@@ -163,35 +232,43 @@ export default function Appointment({ doctor }: AppointmentProps) {
                 credentials: 'include',
                 body: JSON.stringify({
                     doctorId: doctor.id,
-                    slotId: selectedSlot,
+                    timeSlot: timeSlot,
+                    date: formattedDate,
                     mode: offlineMode ? 'offline' : 'online',
                     patientName: user.user_name
                 })
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    // If not authorized, redirect to login
+                    router.push('/login');
+                    return;
+                }
                 const data = await response.json();
                 throw new Error(data.message || 'Failed to book appointment');
             }
 
             const appointment = await response.json();
             
-            // Format the date and time for the success page
-            const allSlots = [...morningSlots, ...eveningSlots];
-            const selectedSlotData = allSlots.find(slot => slot.id === selectedSlot);
-            const formattedDate = selectedDate.toLocaleDateString('en-US', {
+            // Format the date for the success page
+            const formattedDateForSuccess = selectedDate.toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             });
             
-            // Redirect to success page with appointment details
+            // Clear any saved appointment intent
+            localStorage.removeItem('appointmentIntent');
+            
+            // Redirect to success page with appointment details and pending status
             const searchParams = new URLSearchParams({
                 doctorName: doctor.name,
-                date: formattedDate,
-                time: selectedSlotData ? selectedSlotData.time : '',
-                mode: offlineMode ? 'Hospital Visit' : 'Video Consultation'
+                date: formattedDateForSuccess,
+                time: selectedTime,
+                mode: offlineMode ? 'Hospital Visit' : 'Video Consultation',
+                status: 'pending'
             });
 
             router.push(`/appointments/success?${searchParams.toString()}`);
@@ -202,6 +279,25 @@ export default function Appointment({ doctor }: AppointmentProps) {
             setLoading(false);
         }
     };
+
+    // Effect to handle saved appointment intent after login
+    useEffect(() => {
+        if (user) {
+            const savedIntent = localStorage.getItem('appointmentIntent');
+            if (savedIntent) {
+                try {
+                    const intent = JSON.parse(savedIntent);
+                    if (intent.doctorId === doctor.id) {
+                        setSelectedDate(new Date(intent.date));
+                        setSelectedTime(intent.time);
+                        setOfflineMode(intent.mode === 'offline');
+                    }
+                } catch (err) {
+                    console.error('Error parsing saved appointment intent:', err);
+                }
+            }
+        }
+    }, [user, doctor.id]);
 
     const availableMorningCount = morningSlots.filter(slot => slot.isAvailable).length;
     const availableEveningCount = eveningSlots.filter(slot => slot.isAvailable).length;
@@ -263,10 +359,10 @@ export default function Appointment({ doctor }: AppointmentProps) {
                                     {morningSlots.map((slot, index) => (
                                         <button
                                             key={index}
-                                            onClick={() => handleSlotSelection(slot.id)}
-                                            className={`${slot.id === selectedSlot ? style.bgGreen : style.bgWhite} ${
-                                                !slot.isAvailable ? style.disabled : ''
-                                            }`}
+                                            onClick={() => handleSlotSelection(slot)}
+                                            className={`${style.slotButton} ${
+                                                selectedTime === slot.time ? style.bgGreen : ''
+                                            } ${!slot.isAvailable ? style.disabled : ''}`}
                                             disabled={!slot.isAvailable}
                                         >
                                             {slot.time}
@@ -290,10 +386,10 @@ export default function Appointment({ doctor }: AppointmentProps) {
                                     {eveningSlots.map((slot, index) => (
                                         <button
                                             key={index}
-                                            onClick={() => handleSlotSelection(slot.id)}
-                                            className={`${slot.id === selectedSlot ? style.bgGreen : style.bgWhite} ${
-                                                !slot.isAvailable ? style.disabled : ''
-                                            }`}
+                                            onClick={() => handleSlotSelection(slot)}
+                                            className={`${style.slotButton} ${
+                                                selectedTime === slot.time ? style.bgGreen : ''
+                                            } ${!slot.isAvailable ? style.disabled : ''}`}
                                             disabled={!slot.isAvailable}
                                         >
                                             {slot.time}
@@ -307,7 +403,7 @@ export default function Appointment({ doctor }: AppointmentProps) {
                     <button
                         className={style.nextButton}
                         onClick={handleNext}
-                        disabled={loading || !selectedSlot}
+                        disabled={loading || !selectedTime}
                     >
                         {loading ? 'Booking...' : 'Next'}
                     </button>

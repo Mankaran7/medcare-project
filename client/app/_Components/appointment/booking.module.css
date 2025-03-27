@@ -68,10 +68,12 @@ padding: 2% 5% 2% 5%;
 .bgGreen{
 background-color:#1C4A2A ;
 color: white;
+border: 1px solid #1C4A2A;
 }
 .bgWhite{
 background-color:white ;
 color: black;
+border: 1px solid #D3D4DB;
 }
 .hospitalList{
 width: 100%;
@@ -154,8 +156,10 @@ color: white;
 font-size: 1rem;
 }
 .disabled{
-background-color: #DEDEDE;
-color: #9092A3;
+background-color: #DEDEDE !important;
+color: #9092A3 !important;
+cursor: not-allowed !important;
+border: 1px solid #DEDEDE !important;
 }
 .doctorInfo {
     display: flex;
@@ -202,14 +206,28 @@ color: #9092A3;
     background-color: #e8f5e9;
 }
 .slotButton.bgGreen {
-    background-color: #1C4A2A;
-    color: white;
-    border-color: #1C4A2A;
+    background-color: #1C4A2A !important;
+    color: white !important;
+    border-color: #1C4A2A !important;
 }
 .slotButton.disabled {
     background-color: #DEDEDE;
     color: #9092A3;
     cursor: not-allowed;
+}
+.availableSlotsContainer button {
+    width: 7rem;
+    height: 2.5rem;
+    border: 1px solid #F4D7D0;
+    margin-bottom: 1rem;
+    border-radius: 7px;
+    font-weight: 500;
+    padding: .3% .8% .1% .8%;
+    font-size: 1rem;
+    background-color: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 @media screen and (max-width:750px){
 .main{
