@@ -27,5 +27,3 @@ router.get('/pending', getPendingAppointments);
 router.put('/:id/accept', acceptAppointment);
 router.put('/:id/reject', rejectAppointment);
 router.delete('/:id', deleteAppointment);
-
-module.exports = router; 

@@ -11,12 +11,13 @@ const getAvailableSlots = async (req, res) => {
             [doctorId, date]
         );
 
+        // Get both approved and pending appointments
         const bookedSlots = await db.any(
-            'SELECT slot_id FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND status = $3',
-            [doctorId, date, 'approved']
+            'SELECT slot_id FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND status IN ($3, $4)',
+            [doctorId, date, 'approved', 'pending']
         );
 
-        // Mark slots as unavailable only if they have approved appointments
+        // Mark slots as unavailable if they have either approved or pending appointments
         const availableSlots = slots.map(slot => ({
             ...slot,
             is_available: !bookedSlots.some(booked => booked.slot_id === slot.id)
@@ -52,24 +53,17 @@ const bookAppointment = async (req, res) => {
             );
         }
 
-        // Check if slot already has an approved appointment
-        const existingApprovedAppointment = await db.oneOrNone(
-            'SELECT * FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND slot_id = $3 AND status = $4',
-            [doctorId, date, slot.id, 'approved']
+        // Check if slot has any existing appointments (approved or pending)
+        const existingAppointment = await db.oneOrNone(
+            'SELECT status FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND slot_id = $3 AND status IN ($4, $5)',
+            [doctorId, date, slot.id, 'approved', 'pending']
         );
 
-        if (existingApprovedAppointment) {
-            return res.status(400).json({ message: 'Slot is already booked' });
-        }
-
-        // Check if the user already has a pending appointment for this slot
-        const existingPendingAppointment = await db.oneOrNone(
-            'SELECT * FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND slot_id = $3 AND patient_name = $4 AND status = $5',
-            [doctorId, date, slot.id, patientName, 'pending']
-        );
-
-        if (existingPendingAppointment) {
-            return res.status(400).json({ message: 'You already have a pending appointment for this slot' });
+        if (existingAppointment) {
+            const message = existingAppointment.status === 'approved' 
+                ? 'This time slot is already booked' 
+                : 'This time slot is currently pending approval. Please choose another slot';
+            return res.status(400).json({ message });
         }
 
         // Book the appointment with pending status

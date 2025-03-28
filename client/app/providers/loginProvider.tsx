@@ -61,7 +61,7 @@ export const LoginProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     useEffect(() => {
-        // Set initial state to match SSR
+    
         setIsInitialized(false);
         
         let mounted = true;
