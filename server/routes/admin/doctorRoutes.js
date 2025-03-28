@@ -8,7 +8,8 @@ const {
     updateDoctor,
     deleteDoctor,
     getDoctorById,
-    searchDoctors
+    searchDoctors,
+    getAllDoctorsAdmin
 } = require('../../controllers/admin/doctorController');
 
 // Configure multer for memory storage
@@ -36,6 +37,7 @@ router.get('/search', searchDoctors);
 //router.use(isAdmin);
 
 router.get('/', getAllDoctors);
+router.get('/all', getAllDoctorsAdmin);
 router.post('/create', upload.single('doctor_photo'), addDoctor);
 //router.put('/:id', upload.single('doctor_photo'), updateDoctor);
 router.delete('/:id', deleteDoctor);

@@ -4,74 +4,93 @@ const cloudinary = require('../../config/cloudinary');
 
 exports.getAllDoctors = async (req, res) => {
     try {
-        const { page = 1, rating, experience, gender, search } = req.query;
-        const limit = 6;
-        const offset = (parseInt(page) - 1) * limit;
-
-        let query = 'SELECT * FROM doctors WHERE 1=1';
-        const queryParams = [];
-        let paramCount = 1;
-
-        // Add search filter
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+        const offset = (page - 1) * limit;
+        
+        // Get filter parameters
+        const { search, rating, experience, gender } = req.query;
+        
+        // Build the WHERE clause and params array
+        const conditions = [];
+        const params = [];
+        
         if (search) {
-            query += ` AND (
-                doctor_name ILIKE $${paramCount} 
-                OR speciality ILIKE $${paramCount}
-                OR degree ILIKE $${paramCount}
-            )`;
-            queryParams.push(`%${search}%`);
-            paramCount++;
+            conditions.push(`(doctor_name ILIKE $1 OR speciality ILIKE $1)`);
+            params.push(`%${search}%`);
         }
-
-        // Add rating filter
+        
         if (rating) {
-            query += ` AND ratings = $${paramCount}`;
-            queryParams.push(parseInt(rating));
-            paramCount++;
+            conditions.push(`ratings >= $${params.length + 1}`);
+            params.push(parseFloat(rating));
         }
-
-        // Add experience filter
+        
         if (experience) {
-            if (experience === '15+') {
-                query += ` AND experience_years >= $${paramCount}`;
-                queryParams.push(15);
-            } else {
-                const [min, max] = experience.split('-').map(Number);
-                query += ` AND experience_years >= $${paramCount} AND experience_years < $${paramCount + 1}`;
-                queryParams.push(min, max);
-                paramCount += 2;
-            }
+            conditions.push(`experience_years >= $${params.length + 1}`);
+            params.push(parseInt(experience));
         }
-
-        // Add gender filter
+        
         if (gender) {
-            query += ` AND gender = $${paramCount}`;
-            queryParams.push(gender);
-            paramCount++;
+            // Capitalize first letter and make rest lowercase to match database format
+            const formattedGender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
+            conditions.push(`gender = $${params.length + 1}`);
+            params.push(formattedGender);
         }
-
-        // Get total count with filters
-        const countQuery = `SELECT COUNT(*) as total FROM (${query}) as filtered_doctors`;
-        const totalCount = await db.one(countQuery, queryParams);
-
-        // Add pagination
-        query += ` ORDER BY doctor_id LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-        queryParams.push(limit, offset);
-
-        const doctors = await db.any(query, queryParams);
-
+        
+        // Add pagination parameters
+        params.push(limit);
+        params.push(offset);
+        
+        // Construct the WHERE clause
+        const whereClause = conditions.length > 0 
+            ? `WHERE ${conditions.join(" AND ")}`
+            : "";
+        
+        // Get total count
+        const totalResult = await db.one(
+            `SELECT COUNT(*) FROM doctors ${whereClause}`,
+            params.slice(0, -2) // Exclude pagination params
+        );
+        
+        // Get doctors with pagination
+        const doctors = await db.any(
+            `SELECT 
+                doctor_id,
+                doctor_name,
+                doctor_photo,
+                degree,
+                speciality,
+                experience_years,
+                location,
+                available_time,
+                ratings,
+                gender
+            FROM doctors 
+            ${whereClause}
+            ORDER BY doctor_name 
+            LIMIT $${params.length - 1} 
+            OFFSET $${params.length}`,
+            params
+        );
+        
+        // Send response
         res.json({
             ok: true,
             data: {
                 rows: doctors,
-                total: parseInt(totalCount.total)
+                total: parseInt(totalResult.count),
+                page: page,
+                limit: limit,
+                totalPages: Math.ceil(parseInt(totalResult.count) / limit)
             }
         });
+        
     } catch (error) {
-        res.status(500).json({ 
+        console.error("Error in getAllDoctors:", error);
+        res.status(500).json({
             ok: false,
-            message: 'Error fetching doctors',
-            error: error.message 
+            message: "Failed to fetch doctors",
+            error: error.message
         });
     }
 };
@@ -145,21 +164,34 @@ exports.getDoctorById = async (req, res) => {
 
 exports.searchDoctors = async (req, res) => {
     try {
-        const { q, page = 1 } = req.query;
-        const limit = 6;
-        const offset = (parseInt(page) - 1) * limit;
+        const { q, page } = req.query;
+        const pageNum = Math.max(1, parseInt(page || 1));
+        const offset = (pageNum - 1) * 6;
 
         // Create search pattern for case-insensitive search
         const searchPattern = `%${q}%`;
 
-        // Build the search query
+        // Build the search query with your actual column names
         const query = `
-            SELECT * FROM doctors 
+            SELECT 
+                doctor_id,
+                doctor_name,
+                speciality,
+                experience_years,
+                ratings,
+                COALESCE(
+                    CASE 
+                        WHEN doctor_photo LIKE 'http%' THEN doctor_photo
+                        WHEN doctor_photo IS NULL OR doctor_photo = '' THEN '/default-doctor.png'
+                        ELSE '/default-doctor.png'
+                    END,
+                    '/default-doctor.png'
+                ) as doctor_photo
+            FROM doctors 
             WHERE doctor_name ILIKE $1 
-            OR speciality ILIKE $1 
-            OR degree ILIKE $1
+            OR speciality ILIKE $1
             ORDER BY ratings DESC
-            LIMIT $2 OFFSET $3
+            LIMIT 6 OFFSET $2
         `;
 
         // Get total count with search filter
@@ -167,25 +199,74 @@ exports.searchDoctors = async (req, res) => {
             SELECT COUNT(*) as total 
             FROM doctors 
             WHERE doctor_name ILIKE $1 
-            OR speciality ILIKE $1 
-            OR degree ILIKE $1
+            OR speciality ILIKE $1
         `;
 
-        const totalCount = await db.one(countQuery, [searchPattern]);
-        const doctors = await db.any(query, [searchPattern, limit, offset]);
+        const countResult = await db.one(countQuery, [searchPattern]);
+        const total = parseInt(countResult.total) || 0;
 
-        res.json({
+        const doctors = await db.any(query, [searchPattern, offset]);
+
+        // Process the results to ensure valid image URLs
+        const processedDoctors = doctors.map(doctor => ({
+            ...doctor,
+            doctor_photo: doctor.doctor_photo.startsWith('http') 
+                ? doctor.doctor_photo 
+                : '/default-doctor.png'
+        }));
+
+        res.status(200).json({
             ok: true,
             data: {
-                rows: doctors,
-                total: parseInt(totalCount.total)
+                rows: processedDoctors,
+                total,
+                page: pageNum,
+                limit: 6,
+                totalPages: Math.ceil(total / 6)
             }
         });
     } catch (error) {
+        console.error("Database error:", error.message);
         res.status(500).json({ 
             ok: false,
-            message: 'Error searching doctors',
-            error: error.message 
+            message: "An error occurred while searching doctors: " + error.message
+        });
+    }
+};
+
+exports.getAllDoctorsAdmin = async (req, res) => {
+    try {
+        // Get all doctors without pagination
+        const doctors = await db.any(
+            `SELECT 
+                doctor_id,
+                doctor_name,
+                doctor_photo,
+                degree,
+                speciality,
+                experience_years,
+                location,
+                available_time,
+                ratings,
+                gender
+            FROM doctors 
+            ORDER BY doctor_name`
+        );
+        
+        // Send response
+        res.json({
+            ok: true,
+            data: {
+                rows: doctors
+            }
+        });
+        
+    } catch (error) {
+        console.error("Error in getAllDoctorsAdmin:", error);
+        res.status(500).json({
+            ok: false,
+            message: "Failed to fetch doctors",
+            error: error.message
         });
     }
 }; 

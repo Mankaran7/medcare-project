@@ -218,7 +218,7 @@ export default function AdminAppointments() {
                     disabled={actionLoading === appt.id}
                   >
                     {actionLoading === appt.id ? "Rejecting..." : "Reject"}
-                  </button>
+                </button>
                 </>
               )}
               <button
