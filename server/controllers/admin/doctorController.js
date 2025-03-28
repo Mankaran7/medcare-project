@@ -1,4 +1,6 @@
 const db = require('../../config/db');
+const multer = require('multer');
+const cloudinary = require('../../config/cloudinary');
 
 exports.getAllDoctors = async (req, res) => {
     try {
@@ -118,25 +120,6 @@ exports.addDoctor = async (req, res) => {
             message: "Error adding doctor", 
             error: error.message 
         });
-    }
-};
-
-exports.updateDoctor = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { field, value } = req.body; 
-        const validFields = ['doctor_name', 'degree', 'speciality', 'experience_years', 'location', 'available_time', 'ratings', 'gender', 'image'];
-        if (!validFields.includes(field)) {
-            return res.status(400).json({ message: 'Invalid field for update' });
-        }
-
-        const query = `UPDATE doctors SET ${field} = $1 WHERE id = $2 RETURNING *`;
-
-        const doctor = await db.one(query, [value, id]);
-
-        res.json(doctor);
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating doctor', error: error.message });
     }
 };
 

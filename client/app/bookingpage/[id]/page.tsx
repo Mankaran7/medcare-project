@@ -40,7 +40,7 @@ export default function DynamicBookingPage() {
     useEffect(() => {
         const fetchDoctor = async () => {
             try {
-                const response = await fetch(`/api/admin/doctors/public/${params.id}`);
+                const response = await fetch(`http://localhost:3001/api/admin/doctors/public/${params.id}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch doctor');
                 }

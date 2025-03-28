@@ -206,15 +206,15 @@ export default function ShowCards() {
                             </label>
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <label key={star} className={styles.filterOption}>
-                                    <input
-                                        type="radio"
-                                        name="rating"
+                                <input
+                                    type="radio"
+                                    name="rating"
                                         value={star.toString()}
                                         checked={filters.rating === star.toString()}
-                                        onChange={handleFilterChange}
-                                    />
+                                    onChange={handleFilterChange}
+                                />
                                     <span>{star} star</span>
-                                </label>
+                            </label>
                             ))}
                         </div>
                     </div>
@@ -231,15 +231,15 @@ export default function ShowCards() {
                                 "0-1",
                             ].map((exp) => (
                                 <label key={exp} className={styles.filterOption}>
-                                    <input
-                                        type="radio"
-                                        name="experience"
+                                <input
+                                    type="radio"
+                                    name="experience"
                                         value={exp}
                                         checked={filters.experience === exp}
-                                        onChange={handleFilterChange}
-                                    />
+                                    onChange={handleFilterChange}
+                                />
                                     <span>{exp} years</span>
-                                </label>
+                            </label>
                             ))}
                         </div>
                     </div>
@@ -283,7 +283,7 @@ export default function ShowCards() {
 
                 <div className={styles.gridContainer}>
                     <div className={styles.cardsGrid}>
-                        {doctors.map((doctor) => (
+                    {doctors.map((doctor) => (
                             <CardComp 
                                 key={doctor.doctor_id} 
                                 doctor={{

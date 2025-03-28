@@ -4,14 +4,28 @@ const db = require('../../config/db');
 exports.getAllAppointments = async (req, res) => {
     try {
         const appointments = await db.any(`
-            SELECT a.*, u.name as patient_name, d.name as doctor_name 
+            SELECT 
+                a.id,
+                a.doctor_id,
+                a.patient_name,
+                d.doctor_name AS doctor_name,
+                d.doctor_photo,
+                a.slot_id,
+                a.mode,
+                a.booked_at,
+                a.appointment_date,
+                a.mode AS mode_of_appointment,
+                a.status,
+                s.time_slot
             FROM appointments a
-            JOIN users u ON a.user_id = u.id
-            JOIN doctors d ON a.doctor_id = d.id
-            ORDER BY a.created_at DESC
+            LEFT JOIN slots s ON a.slot_id = s.id
+            LEFT JOIN doctors d ON a.doctor_id = d.doctor_id 
+            WHERE a.status = 'pending'
+            ORDER BY a.booked_at DESC
         `);
         res.json(appointments);
     } catch (error) {
+        console.error("Error fetching appointments:", error.message);
         res.status(500).json({ message: 'Error fetching appointments', error: error.message });
     }
 };
@@ -20,15 +34,28 @@ exports.getAllAppointments = async (req, res) => {
 exports.getPendingAppointments = async (req, res) => {
     try {
         const appointments = await db.any(`
-            SELECT a.*, u.name as patient_name, d.name as doctor_name 
+            SELECT 
+                a.id,
+                a.doctor_id,
+                a.patient_name,
+                d.doctor_name AS doctor_name,
+                d.doctor_photo,
+                a.slot_id,
+                a.mode,
+                a.booked_at,
+                a.appointment_date,
+                a.mode AS mode_of_appointment,
+                a.status,
+                s.time_slot
             FROM appointments a
-            JOIN users u ON a.user_id = u.id
-            JOIN doctors d ON a.doctor_id = d.id
+            LEFT JOIN slots s ON a.slot_id = s.id
+            LEFT JOIN doctors d ON a.doctor_id = d.doctor_id
             WHERE a.status = 'pending'
-            ORDER BY a.created_at DESC
+            ORDER BY a.booked_at DESC
         `);
         res.json(appointments);
     } catch (error) {
+        console.error("Error fetching pending appointments:", error.message);
         res.status(500).json({ message: 'Error fetching pending appointments', error: error.message });
     }
 };
@@ -39,13 +66,14 @@ exports.acceptAppointment = async (req, res) => {
         const { id } = req.params;
         const appointment = await db.one(
             `UPDATE appointments 
-             SET status = 'accepted', updated_at = CURRENT_TIMESTAMP
+             SET status = 'approved'
              WHERE id = $1
              RETURNING *`,
             [id]
         );
         res.json(appointment);
     } catch (error) {
+        console.error("Error accepting appointment:", error.message);
         res.status(500).json({ message: 'Error accepting appointment', error: error.message });
     }
 };
@@ -56,13 +84,14 @@ exports.rejectAppointment = async (req, res) => {
         const { id } = req.params;
         const appointment = await db.one(
             `UPDATE appointments 
-             SET status = 'rejected', updated_at = CURRENT_TIMESTAMP
+             SET status = 'rejected'
              WHERE id = $1
              RETURNING *`,
             [id]
         );
         res.json(appointment);
     } catch (error) {
+        console.error("Error rejecting appointment:", error.message);
         res.status(500).json({ message: 'Error rejecting appointment', error: error.message });
     }
 };
@@ -74,6 +103,7 @@ exports.deleteAppointment = async (req, res) => {
         await db.none('DELETE FROM appointments WHERE id = $1', [id]);
         res.json({ message: 'Appointment deleted successfully' });
     } catch (error) {
+        console.error("Error deleting appointment:", error.message);
         res.status(500).json({ message: 'Error deleting appointment', error: error.message });
     }
 }; 

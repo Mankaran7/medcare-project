@@ -336,20 +336,20 @@ export default function Appointment({ doctor }: AppointmentProps) {
                         <div className={style.loading}>Loading slots...</div>
                     ) : (
                         <>
-                            <div className={style.availableSlots}>
-                                <div className={style.sunCountOfSlots}>
-                                    <div className={style.sunMorning}>
-                                        <div className={style.sun}></div>
-                                        <div className={style.morning}>Morning</div>
-                                    </div>
-                                    <div className={style.countOfSlots}>
+                    <div className={style.availableSlots}>
+                        <div className={style.sunCountOfSlots}>
+                            <div className={style.sunMorning}>
+                                <div className={style.sun}></div>
+                                <div className={style.morning}>Morning</div>
+                            </div>
+                            <div className={style.countOfSlots}>
                                         <span>Slots {availableMorningCount}</span>
-                                    </div>
-                                </div>
-                                <div className={style.horizontalLine}></div>
-                                <div className={style.availableSlotsContainer}>
+                            </div>
+                        </div>
+                        <div className={style.horizontalLine}></div>
+                        <div className={style.availableSlotsContainer}>
                                     {morningSlots.map((slot, index) => (
-                                        <button
+                                    <button
                                             key={index}
                                             onClick={() => handleSlotSelection(slot)}
                                             className={`${style.slotButton} ${
@@ -358,25 +358,25 @@ export default function Appointment({ doctor }: AppointmentProps) {
                                             disabled={!slot.isAvailable}
                                         >
                                             {slot.time}
-                                        </button>
+                                    </button>
                                     ))}
-                                </div>
-                            </div>
+                        </div>
+                    </div>
 
-                            <div className={style.availableSlots}>
-                                <div className={style.sunCountOfSlots}>
-                                    <div className={style.sunMorning}>
-                                        <div className={style.sunset}></div>
-                                        <div className={style.morning}>Evening</div>
-                                    </div>
-                                    <div className={style.countOfSlots}>
+                    <div className={style.availableSlots}>
+                        <div className={style.sunCountOfSlots}>
+                            <div className={style.sunMorning}>
+                                <div className={style.sunset}></div>
+                                <div className={style.morning}>Evening</div>
+                            </div>
+                            <div className={style.countOfSlots}>
                                         <span>Slots {availableEveningCount}</span>
-                                    </div>
-                                </div>
-                                <div className={style.horizontalLine}></div>
-                                <div className={style.availableSlotsContainer}>
+                            </div>
+                        </div>
+                        <div className={style.horizontalLine}></div>
+                        <div className={style.availableSlotsContainer}>
                                     {eveningSlots.map((slot, index) => (
-                                        <button
+                                    <button
                                             key={index}
                                             onClick={() => handleSlotSelection(slot)}
                                             className={`${style.slotButton} ${
@@ -385,10 +385,10 @@ export default function Appointment({ doctor }: AppointmentProps) {
                                             disabled={!slot.isAvailable}
                                         >
                                             {slot.time}
-                                        </button>
+                                    </button>
                                     ))}
-                                </div>
-                            </div>
+                        </div>
+                    </div>
                         </>
                     )}
                     

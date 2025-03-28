@@ -10,14 +10,15 @@ const port = process.env.PORT || 3001;
 
 app.use(
     cors({
-        origin: ["http://localhost:3000", "http://localhost:3001"],
+        origin: ['http://localhost:3000', 'http://localhost:3001'],
         credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+        exposedHeaders: ['set-cookie']
     })
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));  // Changed to true to handle nested objects
 app.use(express.json());
 
 app.use(
@@ -27,7 +28,7 @@ app.use(
         saveUninitialized: false,
         cookie: {
             httpOnly: true,
-            secure: false, // set to true in production with HTTPS
+            secure: false,
             maxAge: 24 * 60 * 60 * 1000, // 24 hours
             sameSite: 'lax',
             path: '/',
@@ -54,10 +55,14 @@ app.get("/", (req, res) => {
 const indexRouter = require("./routes/index");
 const userRoutes = require('./routes/usersRouter');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const adminDoctorRoutes = require('./routes/admin/doctorRoutes');
+const adminAppointmentRoutes = require('./routes/admin/appointmentRoutes');
 
 app.use("/api", indexRouter);
 app.use('/api/users', userRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/admin/doctors', adminDoctorRoutes);
+app.use('/api/admin/appointments', adminAppointmentRoutes);
 
 app.listen(port, (err) => {
     if (err) console.log("Error:", err);

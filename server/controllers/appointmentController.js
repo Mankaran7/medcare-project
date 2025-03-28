@@ -11,7 +11,6 @@ const getAvailableSlots = async (req, res) => {
             [doctorId, date]
         );
 
-        // Get slots with approved appointments for that doctor and date
         const bookedSlots = await db.any(
             'SELECT slot_id FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND status = $3',
             [doctorId, date, 'approved']
@@ -25,7 +24,7 @@ const getAvailableSlots = async (req, res) => {
 
         res.json(availableSlots);
     } catch (error) {
-        console.error('Error getting available slots:', error);
+        console.error('Error getting available slots:', error.message);
         res.status(500).json({ message: 'Error getting available slots' });
     }
 };
@@ -84,7 +83,7 @@ const bookAppointment = async (req, res) => {
 
         res.status(201).json(appointment);
     } catch (error) {
-        console.error('Error booking appointment:', error);
+        console.error('Error booking appointment:', error.message);
         res.status(500).json({ message: 'Error booking appointment' });
     }
 };
@@ -105,7 +104,7 @@ const getMyAppointments = async (req, res) => {
         const appointments = await db.any(
             `SELECT 
                 a.*,
-                d.name as doctor_name,
+                d.doctor_name,
                 s.time_slot,
                 s.date,
                 CASE 
@@ -115,11 +114,11 @@ const getMyAppointments = async (req, res) => {
                     WHEN a.status = 'cancelled' THEN 'Cancelled'
                 END as status_display
             FROM appointments a
-            JOIN doctors d ON a.doctor_id = d.id
+            JOIN doctors d ON a.doctor_id = d.doctor_id
             JOIN slots s ON a.slot_id = s.id
             WHERE a.patient_name = $1
             ORDER BY s.date DESC, s.time_slot DESC
-            LIMIT $2 OFFSET $3`,
+            LIMIT $2::integer OFFSET $3::integer`,
             [req.user.user_name, limit, offset]
         );
 
@@ -133,7 +132,7 @@ const getMyAppointments = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error getting appointments:', error);
+        console.error('Error getting appointments:', error.message);
         res.status(500).json({ 
             ok: false,
             message: 'Error getting appointments' 
@@ -167,7 +166,7 @@ const cancelAppointment = async (req, res) => {
 
         res.json({ message: 'Appointment cancelled successfully' });
     } catch (error) {
-        console.error('Error cancelling appointment:', error);
+        console.error('Error cancelling appointment:', error.message);
         res.status(500).json({ message: 'Error cancelling appointment' });
     }
 };
