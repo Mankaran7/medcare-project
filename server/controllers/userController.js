@@ -88,6 +88,7 @@ const registerUser = async (req, res) => {
 const loginUser = (req, res, next) => {
     passport_local.authenticate("local", (err, user, info) => {
         if (err) {
+            console.log(err.message);
             return res.status(500).json({
                 message: "Internal server error",
                 ok: false,

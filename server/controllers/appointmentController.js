@@ -5,11 +5,44 @@ const getAvailableSlots = async (req, res) => {
     try {
         const { doctorId, date } = req.params;
         
-        // Get all slots for the doctor on that date
-        const slots = await db.any(
+        // Define default time slots
+        const defaultMorningSlots = [
+            "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30"
+        ];
+        const defaultEveningSlots = [
+            "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"
+        ];
+
+        // Get existing slots for the doctor on that date
+        let slots = await db.any(
             'SELECT * FROM slots WHERE doctor_id = $1 AND date = $2 ORDER BY time_slot',
             [doctorId, date]
         );
+
+        // If no slots exist, create default slots
+        if (slots.length === 0) {
+            // Create morning slots
+            for (const time of defaultMorningSlots) {
+                await db.none(
+                    'INSERT INTO slots (doctor_id, date, time_slot) VALUES ($1, $2, $3)',
+                    [doctorId, date, time]
+                );
+            }
+
+            // Create evening slots
+            for (const time of defaultEveningSlots) {
+                await db.none(
+                    'INSERT INTO slots (doctor_id, date, time_slot) VALUES ($1, $2, $3)',
+                    [doctorId, date, time]
+                );
+            }
+
+            // Fetch the newly created slots
+            slots = await db.any(
+                'SELECT * FROM slots WHERE doctor_id = $1 AND date = $2 ORDER BY time_slot',
+                [doctorId, date]
+            );
+        }
 
         // Get both approved and pending appointments
         const bookedSlots = await db.any(
@@ -41,14 +74,14 @@ const bookAppointment = async (req, res) => {
 
         // First, try to get the existing slot
         let slot = await db.oneOrNone(
-            'SELECT id, is_available FROM slots WHERE doctor_id = $1 AND date = $2 AND time_slot = $3',
+            'SELECT id FROM slots WHERE doctor_id = $1 AND date = $2 AND time_slot = $3',
             [doctorId, date, timeSlot]
         );
 
         // If slot doesn't exist, create it
         if (!slot) {
             slot = await db.one(
-                'INSERT INTO slots (doctor_id, date, time_slot, is_available) VALUES ($1, $2, $3, true) RETURNING id, is_available',
+                'INSERT INTO slots (doctor_id, date, time_slot) VALUES ($1, $2, $3) RETURNING id',
                 [doctorId, date, timeSlot]
             );
         }
@@ -71,9 +104,6 @@ const bookAppointment = async (req, res) => {
             'INSERT INTO appointments (doctor_id, patient_name, slot_id, mode, booked_at, appointment_date, mode_of_appointment, status) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7) RETURNING *',
             [doctorId, patientName, slot.id, mode, date, mode, 'pending']
         );
-
-        // Note: We don't update slot availability until the appointment is approved
-        // This way other patients can still book the same slot until admin approves one
 
         res.status(201).json(appointment);
     } catch (error) {
@@ -151,12 +181,6 @@ const cancelAppointment = async (req, res) => {
 
         // Delete the appointment
         await db.none('DELETE FROM appointments WHERE id = $1', [appointmentId]);
-
-        // Make the slot available again
-        await db.none(
-            'UPDATE slots SET is_available = true WHERE id = $1',
-            [appointment.slot_id]
-        );
 
         res.json({ message: 'Appointment cancelled successfully' });
     } catch (error) {

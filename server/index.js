@@ -1,12 +1,13 @@
 const express = require("express");
 const passport = require("passport");
 require('dotenv').config();
-
-const passport_local = require("./config/passport-local-strategy.js");
 const cors = require("cors");
 const passport_google = require("./config/passport-google-oauth.js");
 const app = express();
 const port = process.env.PORT || 3001;
+const bcrypt = require('bcrypt');
+
+const seedAdmin = require('./seeds/adminSeed');
 
 app.use(
     cors({
@@ -63,6 +64,13 @@ app.use('/api/users', userRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin/doctors', adminDoctorRoutes);
 app.use('/api/admin/appointments', adminAppointmentRoutes);
+
+// Seed admin user on server start
+seedAdmin().then(() => {
+    console.log('Admin seeding completed');
+}).catch(error => {
+    console.error('Error during admin seeding:', error);
+});
 
 app.listen(port, (err) => {
     if (err) console.log("Error:", err);
