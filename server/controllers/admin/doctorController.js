@@ -1,6 +1,6 @@
 const db = require('../../config/db');
 const multer = require('multer');
-const cloudinary = require('../../config/cloudinary');
+
 
 exports.getAllDoctors = async (req, res) => {
     try {
@@ -8,10 +8,9 @@ exports.getAllDoctors = async (req, res) => {
         const limit = parseInt(req.query.limit) || 6;
         const offset = (page - 1) * limit;
         
-        // Get filter parameters
+      
         const { search, rating, experience, gender } = req.query;
-        
-        // Build the WHERE clause and params array
+   
         const conditions = [];
         const params = [];
         
@@ -26,7 +25,7 @@ exports.getAllDoctors = async (req, res) => {
         }
         
         if (experience && experience !== 'any') {
-            // Handle experience ranges
+       
             if (experience === '15+') {
                 conditions.push(`experience_years >= $${params.length + 1}`);
                 params.push(15);
@@ -45,22 +44,21 @@ exports.getAllDoctors = async (req, res) => {
             params.push(formattedGender);
         }
         
-        // Add pagination parameters
+        
         params.push(limit);
         params.push(offset);
         
-        // Construct the WHERE clause
+ 
         const whereClause = conditions.length > 0 
             ? `WHERE ${conditions.join(" AND ")}`
             : "";
-        
-        // Get total count
+    
         const totalResult = await db.one(
             `SELECT COUNT(*) FROM doctors ${whereClause}`,
-            params.slice(0, -2) // Exclude pagination params
+            params.slice(0, -2) 
         );
         
-        // Get doctors with pagination
+   
         const doctors = await db.any(
             `SELECT 
                 doctor_id,
@@ -103,52 +101,7 @@ exports.getAllDoctors = async (req, res) => {
     }
 };
 
-exports.addDoctor = async (req, res) => {
-    try {
-        const {
-            doctor_name,
-            degree,
-            speciality,
-            experience_years,
-            location,
-            available_time,
-            ratings,
-            gender,
-            image,
-        } = req.body;
-        let imageUrl = req.file ? req.file.path : image;
 
-        const availableTimeValue = available_time || "Not Available"; 
-        const ratingsValue = ratings || 0; 
-        const doctor = await db.one(
-            `INSERT INTO doctors 
-                (doctor_name, degree, speciality, experience_years, location, available_time, ratings, gender, doctor_photo)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             RETURNING *`,
-            [
-                doctor_name,
-                degree,
-                speciality,
-                experience_years,
-                location,
-                availableTimeValue,
-                ratingsValue,
-                gender,
-                imageUrl,
-            ]
-        );
-        res.status(201).json({
-            message: "Doctor added successfully",
-            doctor,
-        });
-    } catch (error) {
-        console.error("Error adding doctor:", error);
-        res.status(500).json({ 
-            message: "Error adding doctor", 
-            error: error.message 
-        });
-    }
-};
 
 exports.deleteDoctor = async (req, res) => {
     try {
@@ -176,10 +129,10 @@ exports.searchDoctors = async (req, res) => {
         const pageNum = Math.max(1, parseInt(page || 1));
         const offset = (pageNum - 1) * 6;
 
-        // Create search pattern for case-insensitive search
+    
         const searchPattern = `%${q}%`;
 
-        // Build the search query with your actual column names
+      
         const query = `
             SELECT 
                 doctor_id,
@@ -202,7 +155,7 @@ exports.searchDoctors = async (req, res) => {
             LIMIT 6 OFFSET $2
         `;
 
-        // Get total count with search filter
+    
         const countQuery = `
             SELECT COUNT(*) as total 
             FROM doctors 
@@ -215,7 +168,7 @@ exports.searchDoctors = async (req, res) => {
 
         const doctors = await db.any(query, [searchPattern, offset]);
 
-        // Process the results to ensure valid image URLs
+     
         const processedDoctors = doctors.map(doctor => ({
             ...doctor,
             doctor_photo: doctor.doctor_photo.startsWith('http') 
@@ -244,7 +197,7 @@ exports.searchDoctors = async (req, res) => {
 
 exports.getAllDoctorsAdmin = async (req, res) => {
     try {
-        // Get all doctors without pagination
+    
         const doctors = await db.any(
             `SELECT 
                 doctor_id,
@@ -261,7 +214,7 @@ exports.getAllDoctorsAdmin = async (req, res) => {
             ORDER BY doctor_name`
         );
         
-        // Send response
+      
         res.json({
             ok: true,
             data: {

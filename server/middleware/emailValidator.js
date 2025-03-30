@@ -5,10 +5,8 @@ const validateEmailDomain = (req, res, next) => {
         return res.status(400).json({ message: 'Email is required' });
     }
 
-    // Extract domain from email
     const domain = email.split('@')[1];
-    
-    // List of allowed domains
+   
     const allowedDomains = ['gmail.com', 'tothenew.com'];
     
     if (!allowedDomains.includes(domain)) {

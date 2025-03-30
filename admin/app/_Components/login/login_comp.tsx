@@ -32,10 +32,7 @@ export default function LoginComp() {
         throw new Error(data.message || "Login failed");
       }
 
-      // Check if user is admin
-      
-      // Redirect to add-doctor page on successful login
-      router.push("/add-doctor");
+      router.push("/appointment");
     } catch (err: any) {
       setError(err.message || "Login failed");
     }

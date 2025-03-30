@@ -3,8 +3,7 @@ const passport_local = require("../config/passport-local-strategy.js");
 const passport_google = require("../config/passport-google-oauth.js");
 const db = require("../config/db.js");          
 
-// @desc Get basic user data
-// @route GET /api/users/
+
 const getUsers = (req, res) => {
     res.status(200).json({
         ok: true,
@@ -12,8 +11,7 @@ const getUsers = (req, res) => {
     });
 };
 
-// @desc Get logged-in user data
-// @route GET /api/users/me
+
 const getMe = (req, res) => {
     if (req.isAuthenticated()) {
         res.json(req.user);
@@ -22,13 +20,12 @@ const getMe = (req, res) => {
     }
 };
 
-// @desc Register a new user
-// @route POST /api/users/register
+
 const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
 
     try {
-        // Check if user already exists
+      
         let user = await db.oneOrNone("SELECT * FROM users WHERE user_emailid=$1", [email]);
 
         if (user) {
@@ -38,16 +35,13 @@ const registerUser = async (req, res) => {
             });
         }
 
-        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPw = await bcrypt.hash(password, salt);
 
-        // Insert new user into database
         const query =
-            "INSERT INTO users(user_name, user_emailid, password) VALUES($1, $2, $3) RETURNING user_name, user_emailid, user_id;";
-        const result = await db.query(query, [name, email, hashedPw]);
+            "INSERT INTO users(user_name, user_emailid, password,role) VALUES($1, $2, $3,$4) RETURNING user_name, user_emailid, user_id;";
+        const result = await db.query(query, [name, email, hashedPw,'patient']);
 
-        // Get the first row (the newly created user)
         const newUser = result.length > 0 ? result[0] : null;
 
         if (!newUser) {
@@ -57,7 +51,6 @@ const registerUser = async (req, res) => {
             });
         }
 
-        // Auto-login after successful registration
         req.login(newUser, (err) => {
             if (err) {
                 console.error("Auto-login error:", err);
@@ -83,8 +76,7 @@ const registerUser = async (req, res) => {
     }
 };
 
-// @desc Login user
-// @route POST /api/users/login
+
 const loginUser = (req, res, next) => {
     passport_local.authenticate("local", (err, user, info) => {
         if (err) {
@@ -115,8 +107,6 @@ const loginUser = (req, res, next) => {
     })(req, res, next);
 };
 
-// @desc Logout user
-// @route POST /api/users/logout
 const logoutUser = (req, res) => {
     req.logout((err) => {
         if (err) {
@@ -129,8 +119,6 @@ const logoutUser = (req, res) => {
     });
 };
 
-// @desc Google OAuth login
-// @route GET /api/users/google
 const googleAuth = (req, res) => {
     passport_google.authenticate("google", { 
         scope: ["profile", "email"],
@@ -138,8 +126,6 @@ const googleAuth = (req, res) => {
     })(req, res);
 };
 
-// @desc Google OAuth callback
-// @route GET /api/users/google/callback
 const googleCallback = (req, res, next) => {
     passport_google.authenticate("google", (err, user) => {
         if (err) {
@@ -157,7 +143,7 @@ const googleCallback = (req, res, next) => {
                 return res.redirect("http://localhost:3000/login?error=login_failed");
             }
             
-            // Successful authentication, redirect home
+  
             return res.redirect("http://localhost:3000");
         });
     })(req, res, next);

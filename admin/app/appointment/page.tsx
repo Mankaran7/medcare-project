@@ -14,8 +14,8 @@ type Appointment = {
   appointment_date: string;
   mode_of_appointment: string;
   status: string;
-  time_slot: string; // Updated to always include time_slot
-  doctor_photo?: string; // Add this field
+  time_slot: string; 
+  doctor_photo?: string; 
 };
 
 export default function AdminAppointments() {
@@ -25,7 +25,7 @@ export default function AdminAppointments() {
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchAppointments(); // Only fetching appointments now
+    fetchAppointments(); 
   }, []);
 
   // Fetch Appointments
@@ -77,7 +77,7 @@ export default function AdminAppointments() {
         throw new Error("Failed to approve appointment");
       }
 
-      fetchAppointments(); // Refresh after approval
+      fetchAppointments(); 
     } catch (err) {
       console.error("Error approving appointment:", err);
       setError("Failed to approve appointment");
@@ -99,7 +99,7 @@ export default function AdminAppointments() {
         throw new Error("Failed to reject appointment");
       }
 
-      fetchAppointments(); // Refresh after rejection
+      fetchAppointments(); 
     } catch (err) {
       console.error("Error rejecting appointment:", err);
       setError("Failed to reject appointment");

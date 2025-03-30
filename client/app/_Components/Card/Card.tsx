@@ -2,19 +2,8 @@ import Image from "next/image";
 import styles from "./Card.module.css";
 import Link from "next/link";
 
-// Database doctor interface
-interface DatabaseDoctor {
-    doctor_id: number;
-    doctor_name: string;
-    doctor_photo: string;
-    degree: string;
-    speciality: string;
-    experience_years: number;
-    location: string;
-    rating?: number;
-}
 
-// Original doctor interface that the component expects
+
 interface Doctor {
     id: number;
     name: string;
@@ -32,7 +21,7 @@ interface CardProps {
 export default function CardComp({ doctor }: CardProps) {
     return (
         <div className={styles.card}>
-            {/* Doctor Image */}
+           
             <Link href={`/doctor/${doctor.id}`} className={styles.imageContainer}>
                 <Image
                     src={doctor.image}
@@ -44,12 +33,12 @@ export default function CardComp({ doctor }: CardProps) {
                 />
             </Link>
 
-            {/* Doctor Name and Degree */}
+            
             <Link href={`/doctor/${doctor.id}`} className={styles.name}>
                 {doctor.name}, {doctor.degree}
             </Link>
 
-            {/* Specialty */}
+           
             <div className={styles.infoContainer}>
                 <Image
                     src={"/Stethoscope.svg"}
@@ -67,7 +56,7 @@ export default function CardComp({ doctor }: CardProps) {
                 <p className={styles.experience}>{doctor.experience}</p>
             </div>
 
-            {/* Rating */}
+            
             <div className={styles.ratingContainer}>
                 {Array.from({ length: 5 }, (_, index) => (
                     <Image
@@ -80,7 +69,7 @@ export default function CardComp({ doctor }: CardProps) {
                 ))}
             </div>
 
-            {/* Book Appointment Button */}
+       
             <Link href={`/bookingpage/${doctor.id}`} className={styles.bookButton}>
                 Book Appointment
             </Link>

@@ -71,7 +71,7 @@ export default function DoctorList() {
         throw new Error("Failed to delete doctor");
       }
 
-      // Refresh the doctor list after deletion
+
       fetchDoctors();
     } catch (err) {
       console.error("Error deleting doctor:", err);

@@ -21,8 +21,8 @@ passport.use(
                 if (!user) {
                     // Create new user if doesn't exist
                     const query = `
-                        INSERT INTO users(user_name, user_emailid, password)
-                        VALUES($1, $2, $3)
+                        INSERT INTO users(user_name, user_emailid, password,role)
+                        VALUES($1, $2, $3,'patient')
                         RETURNING user_name, user_emailid, user_id;
                     `;
 

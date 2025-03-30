@@ -3,24 +3,24 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 1rem;
     background-color: #f5f5f5;
-    padding: 20px;
 }
 
 .successCard {
     background: white;
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     text-align: center;
     max-width: 500px;
     width: 100%;
 }
 
 .checkmark {
-    width: 100px;
-    height: 100px;
-    margin: 0 auto 20px;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
 }
 
 .checkmarkSvg {
@@ -29,21 +29,17 @@
 }
 
 .checkmarkCircle {
-    stroke: #25AE88;
+    stroke: #1C4A2A;
     stroke-width: 2;
-    stroke-dasharray: 166;
-    stroke-dashoffset: 166;
     fill: none;
-    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    animation: stroke 0.6s ease forwards;
 }
 
 .checkmarkCheck {
-    stroke: #25AE88;
+    stroke: #1C4A2A;
     stroke-width: 2;
-    stroke-dasharray: 48;
-    stroke-dashoffset: 48;
     fill: none;
-    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+    animation: stroke 0.3s ease 0.6s forwards;
 }
 
 @keyframes stroke {
@@ -54,57 +50,39 @@
 
 .successCard h1 {
     color: #333;
-    margin-bottom: 30px;
-    font-size: 24px;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
 }
 
 .appointmentDetails {
     background: #f8f9fa;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
     text-align: left;
 }
 
 .appointmentDetails p {
-    margin: 10px 0;
+    margin: 0.5rem 0;
     color: #666;
 }
 
 .appointmentDetails strong {
     color: #333;
-    margin-right: 10px;
-}
-
-.actions {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-}
-
-.viewAppointments, .backHome {
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.3s ease;
-}
-
-.viewAppointments {
-    background-color: #25AE88;
-    color: white;
-}
-
-.viewAppointments:hover {
-    background-color: #1f9873;
 }
 
 .backHome {
-    background-color: #e9ecef;
-    color: #495057;
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background-color: #1C4A2A;
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
 }
 
 .backHome:hover {
-    background-color: #dee2e6;
+    background-color: #153d21;
 } 
  
