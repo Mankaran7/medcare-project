@@ -20,17 +20,25 @@ exports.getAllDoctors = async (req, res) => {
             params.push(`%${search}%`);
         }
         
-        if (rating) {
+        if (rating && rating !== 'any') {
             conditions.push(`ratings >= $${params.length + 1}`);
             params.push(parseFloat(rating));
         }
         
-        if (experience) {
-            conditions.push(`experience_years >= $${params.length + 1}`);
-            params.push(parseInt(experience));
+        if (experience && experience !== 'any') {
+            // Handle experience ranges
+            if (experience === '15+') {
+                conditions.push(`experience_years >= $${params.length + 1}`);
+                params.push(15);
+            } else {
+                const [min, max] = experience.split('-').map(Number);
+                conditions.push(`experience_years >= $${params.length + 1} AND experience_years < $${params.length + 2}`);
+                params.push(min);
+                params.push(max);
+            }
         }
         
-        if (gender) {
+        if (gender && gender !== 'any') {
             // Capitalize first letter and make rest lowercase to match database format
             const formattedGender = gender.charAt(0).toUpperCase() + gender.slice(1).toLowerCase();
             conditions.push(`gender = $${params.length + 1}`);
@@ -73,7 +81,7 @@ exports.getAllDoctors = async (req, res) => {
             params
         );
         
-        // Send response
+        // Send response with pagination info
         res.json({
             ok: true,
             data: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useState, useEffect } from "react";
+import { ChangeEvent, useState, useEffect, useCallback } from "react";
 import CardComp from "../Card/Card";
 import Search from "../SearchBar/Search";
 import styles from "./CardsGrid.module.css";
@@ -29,39 +29,69 @@ interface DoctorsResponse {
 export default function ShowCards() {
     const [filters, setFilters] = useState({
         rating: "any",
-        experience: "15+",
+        experience: "any",
         gender: "any",
     });
+
+    // Map experience string values to integer values for the backend
+    const experienceToIntMap: Record<string, number> = {
+        "15+": 15,
+        "10-15": 10,
+        "5-10": 5,
+        "3-5": 3,
+        "1-3": 1,
+        "0-1": 0,
+    };
 
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [totalDoctors, setTotalDoctors] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [isResetting, setIsResetting] = useState(false);
+    const [filtersApplied, setFiltersApplied] = useState(false);
+    const [searchApplied, setSearchApplied] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const itemsPerPage = 6;
 
-    useEffect(() => {
-        fetchDoctors();
-    }, [currentPage, filters]);
+    const fetchData = useCallback(async () => {
+        if (isResetting) return;
 
-    const fetchDoctors = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const pageNum = Math.max(1, currentPage);
-            const queryParams = new URLSearchParams({
-                page: pageNum.toString(),
-                ...(filters.rating !== "any" && { rating: filters.rating }),
-                ...(filters.experience !== "any" && { experience: filters.experience }),
-                ...(filters.gender !== "any" && { gender: filters.gender })
-            });
+            let url = '/api/admin/doctors/public';
+            let queryParams = new URLSearchParams();
 
-            const response = await fetch(`/api/admin/doctors/public?${queryParams}`, {
+            if (searchApplied && searchQuery) {
+                url = '/api/admin/doctors/search';
+                queryParams.append('q', searchQuery);
+            } else if (filtersApplied) {
+                // Format gender value to match database (capitalize first letter)
+                const formattedGender = filters.gender !== "any" 
+                    ? filters.gender.charAt(0).toUpperCase() + filters.gender.slice(1)
+                    : filters.gender;
+
+                if (filters.rating !== "any") {
+                    queryParams.append('rating', filters.rating);
+                }
+                if (filters.experience !== "any") {
+                    queryParams.append('experience', experienceToIntMap[filters.experience].toString());
+                }
+                if (filters.gender !== "any") {
+                    queryParams.append('gender', formattedGender);
+                }
+            }
+
+            // Always append page
+            queryParams.append('page', currentPage.toString());
+
+            const response = await fetch(`${url}?${queryParams}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                },
+                }
             });
 
             if (!response.ok) {
@@ -75,16 +105,7 @@ export default function ShowCards() {
                 throw new Error(data.message || "Failed to fetch doctors");
             }
 
-            if (!data.data?.rows) {
-                throw new Error("Invalid data format received from server");
-            }
-
-            const doctorsWithRating = data.data.rows.map((doc: Doctor) => ({
-                ...doc,
-                rating: doc.ratings || 4
-            }));
-
-            setDoctors(doctorsWithRating);
+            setDoctors(data.data.rows);
             setTotalDoctors(data.data.total || 0);
         } catch (err) {
             console.error("Error fetching doctors:", err);
@@ -94,70 +115,49 @@ export default function ShowCards() {
         } finally {
             setLoading(false);
         }
+    }, [currentPage, filters, searchQuery, searchApplied, filtersApplied, isResetting]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleSearch = async (searchTerm: string) => {
+        setSearchQuery(searchTerm);
+        setCurrentPage(1);
+        setFiltersApplied(false);
+        setSearchApplied(true);
+    };
+
+    const handleFilters = () => {
+        setCurrentPage(1);
+        setSearchApplied(false);
+        setFiltersApplied(true);
     };
 
     const resetFilters = () => {
+        setIsResetting(true);
         setFilters({
             rating: "any",
-            experience: "15+",
+            experience: "any",
             gender: "any",
         });
         setCurrentPage(1);
+        setFiltersApplied(false);
+        setSearchApplied(false);
+        setSearchQuery("");
+        setIsResetting(false);
     };
 
     const handleFilterChange = (e: ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFilters((prevFilters) => ({
-            ...prevFilters,
+        setFilters(prev => ({
+            ...prev,
             [name]: value,
         }));
-        setCurrentPage(1);
     };
 
     const handlePageChange = (pageNumber: number) => {
         setCurrentPage(pageNumber);
-    };
-
-    const handleSearch = async (searchTerm: string): Promise<void> => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const queryParams = new URLSearchParams({
-                q: searchTerm,
-                page: currentPage.toString()
-            });
-
-            const response = await fetch(`/api/admin/doctors/search?${queryParams}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to search doctors');
-            }
-
-            const data: DoctorsResponse = await response.json();
-            if (!data.ok) {
-                throw new Error(data.message || "Failed to search doctors");
-            }
-
-            const doctorsWithRating = data.data.rows.map((doc: Doctor) => ({
-                ...doc,
-                ratings: doc.ratings || 4
-            }));
-
-            setDoctors(doctorsWithRating);
-            setTotalDoctors(data.data.total || 0);
-            setCurrentPage(1);
-        } catch (err) {
-            console.error("Error searching doctors:", err);
-            setError(err instanceof Error ? err.message : "An error occurred while searching");
-        } finally {
-            setLoading(false);
-        }
     };
 
     if (loading) {
@@ -165,7 +165,14 @@ export default function ShowCards() {
     }
 
     if (error) {
-        return <div className={styles.error}>{error}</div>;
+        return (
+            <div className={styles.error}>
+                <p>{error}</p>
+                <button onClick={fetchData} className={styles.retryButton}>
+                    Retry
+                </button>
+            </div>
+        );
     }
 
     const totalPages = Math.max(1, Math.ceil(totalDoctors / itemsPerPage));
@@ -191,6 +198,7 @@ export default function ShowCards() {
                         </button>
                     </div>
 
+                    {/* Rating Filter */}
                     <div className={styles.filterSection}>
                         <h4 className={styles.filterTitle}>Rating</h4>
                         <div className={styles.filterOptions}>
@@ -206,22 +214,33 @@ export default function ShowCards() {
                             </label>
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <label key={star} className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
+                                    <input
+                                        type="radio"
+                                        name="rating"
                                         value={star.toString()}
                                         checked={filters.rating === star.toString()}
-                                    onChange={handleFilterChange}
-                                />
+                                        onChange={handleFilterChange}
+                                    />
                                     <span>{star} star</span>
-                            </label>
+                                </label>
                             ))}
                         </div>
                     </div>
 
+                    {/* Experience Filter */}
                     <div className={styles.filterSection}>
                         <h4 className={styles.filterTitle}>Experience</h4>
                         <div className={styles.filterOptions}>
+                            <label className={styles.filterOption}>
+                                <input
+                                    type="radio"
+                                    name="experience"
+                                    value="any"
+                                    checked={filters.experience === "any"}
+                                    onChange={handleFilterChange}
+                                />
+                                <span>Show All</span>
+                            </label>
                             {[
                                 "15+",
                                 "10-15",
@@ -231,19 +250,20 @@ export default function ShowCards() {
                                 "0-1",
                             ].map((exp) => (
                                 <label key={exp} className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
+                                    <input
+                                        type="radio"
+                                        name="experience"
                                         value={exp}
                                         checked={filters.experience === exp}
-                                    onChange={handleFilterChange}
-                                />
+                                        onChange={handleFilterChange}
+                                    />
                                     <span>{exp} years</span>
-                            </label>
+                                </label>
                             ))}
                         </div>
                     </div>
 
+                    {/* Gender Filter */}
                     <div className={styles.filterSection}>
                         <h4 className={styles.filterTitle}>Gender</h4>
                         <div className={styles.filterOptions}>
@@ -279,11 +299,19 @@ export default function ShowCards() {
                             </label>
                         </div>
                     </div>
+
+                    <button 
+                        onClick={handleFilters}
+                        className={styles.applyBtn}
+                        disabled={loading}
+                    >
+                        Apply Filters
+                    </button>
                 </div>
 
                 <div className={styles.gridContainer}>
                     <div className={styles.cardsGrid}>
-                    {doctors.map((doctor) => (
+                        {doctors.map((doctor) => (
                             <CardComp 
                                 key={doctor.doctor_id} 
                                 doctor={{

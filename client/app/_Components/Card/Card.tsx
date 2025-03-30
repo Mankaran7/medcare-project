@@ -40,6 +40,7 @@ export default function CardComp({ doctor }: CardProps) {
                     width={100}
                     height={100}
                     className={styles.profileImage}
+                    layout="fixed"
                 />
             </Link>
 

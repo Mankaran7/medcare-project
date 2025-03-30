@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const emailService = require('../services/emailService');
 
 // Get available slots for a specific doctor and date
 const getAvailableSlots = async (req, res) => {
@@ -66,19 +67,30 @@ const getAvailableSlots = async (req, res) => {
 // Book an appointment
 const bookAppointment = async (req, res) => {
     try {
-        const { doctorId, timeSlot, date, mode, patientName } = req.body;
-
-        if (!patientName) {
-            return res.status(400).json({ message: 'Patient name is required' });
+        // Check if user is logged in
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: "Please login to book an appointment"
+            });
         }
 
-        // First, try to get the existing slot
+        const { doctorId, timeSlot, date, mode } = req.body;
+
+        // Validate required fields
+        if (!doctorId || !timeSlot || !date || !mode) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields"
+            });
+        }
+
+        // Get or create time slot
         let slot = await db.oneOrNone(
             'SELECT id FROM slots WHERE doctor_id = $1 AND date = $2 AND time_slot = $3',
             [doctorId, date, timeSlot]
         );
 
-        // If slot doesn't exist, create it
         if (!slot) {
             slot = await db.one(
                 'INSERT INTO slots (doctor_id, date, time_slot) VALUES ($1, $2, $3) RETURNING id',
@@ -86,7 +98,7 @@ const bookAppointment = async (req, res) => {
             );
         }
 
-        // Check if slot has any existing appointments (approved or pending)
+        // Check if slot is already booked
         const existingAppointment = await db.oneOrNone(
             'SELECT status FROM appointments WHERE doctor_id = $1 AND appointment_date = $2 AND slot_id = $3 AND status IN ($4, $5)',
             [doctorId, date, slot.id, 'approved', 'pending']
@@ -96,102 +108,73 @@ const bookAppointment = async (req, res) => {
             const message = existingAppointment.status === 'approved' 
                 ? 'This time slot is already booked' 
                 : 'This time slot is currently pending approval. Please choose another slot';
-            return res.status(400).json({ message });
+            return res.status(400).json({ 
+                success: false,
+                message 
+            });
         }
+
+        // Get doctor details for email
+        const doctor = await db.one(
+            'SELECT doctor_name FROM doctors WHERE doctor_id = $1',
+            [doctorId]
+        );
 
         // Book the appointment with pending status
         const appointment = await db.one(
             'INSERT INTO appointments (doctor_id, patient_name, slot_id, mode, booked_at, appointment_date, mode_of_appointment, status) VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7) RETURNING *',
-            [doctorId, patientName, slot.id, mode, date, mode, 'pending']
+            [doctorId, req.user.user_name, slot.id, mode, date, mode, 'pending']
         );
 
-        res.status(201).json(appointment);
-    } catch (error) {
-        console.error('Error booking appointment:', error.message);
-        res.status(500).json({ message: 'Error booking appointment' });
-    }
-};
+        // Send confirmation email
+        try {
+            await emailService.sendAppointmentConfirmation(
+                req.user.user_emailid,
+                {
+                    patientName: req.user.user_name,
+                    doctorName: doctor.doctor_name,
+                    date,
+                    time: timeSlot,
+                    mode: mode === 'offline' ? 'offline' : 'online',
+                    hospitalName: mode === 'offline' ? 'MediCareHeart Institute, Okhla Road' : undefined
+                }
+            );
 
-// Get user's appointments with pagination
-const getMyAppointments = async (req, res) => {
-    try {
-        const { page = 1, limit = 5 } = req.query;
-        const offset = (page - 1) * limit;
-
-        // Get total count
-        const totalCount = await db.one(
-            'SELECT COUNT(*) as total FROM appointments WHERE patient_name = $1',
-            [req.user.user_name]
-        );
-
-        // Get paginated appointments
-        const appointments = await db.any(
-            `SELECT 
-                a.*,
-                d.doctor_name,
-                s.time_slot,
-                s.date,
-                CASE 
-                    WHEN a.status = 'pending' THEN 'Waiting for approval'
-                    WHEN a.status = 'approved' THEN 'Confirmed'
-                    WHEN a.status = 'rejected' THEN 'Rejected'
-                    WHEN a.status = 'cancelled' THEN 'Cancelled'
-                END as status_display
-            FROM appointments a
-            JOIN doctors d ON a.doctor_id = d.doctor_id
-            JOIN slots s ON a.slot_id = s.id
-            WHERE a.patient_name = $1
-            ORDER BY s.date DESC, s.time_slot DESC
-            LIMIT $2::integer OFFSET $3::integer`,
-            [req.user.user_name, limit, offset]
-        );
-
-        res.json({
-            ok: true,
-            data: {
-                rows: appointments,
-                total: parseInt(totalCount.total),
-                currentPage: parseInt(page),
-                totalPages: Math.ceil(parseInt(totalCount.total) / limit)
-            }
-        });
-    } catch (error) {
-        console.error('Error getting appointments:', error.message);
-        res.status(500).json({ 
-            ok: false,
-            message: 'Error getting appointments' 
-        });
-    }
-};
-
-// Cancel an appointment
-const cancelAppointment = async (req, res) => {
-    try {
-        const { appointmentId } = req.params;
-
-        // Get appointment details
-        const appointment = await db.oneOrNone(
-            'SELECT * FROM appointments WHERE id = $1 AND patient_name = $2',
-            [appointmentId, req.user.user_name]
-        );
-
-        if (!appointment) {
-            return res.status(404).json({ message: 'Appointment not found' });
+            // Send notification to doctor
+            await emailService.sendAppointmentNotification(
+                doctor.doctor_email,
+                {
+                    patientName: req.user.user_name,
+                    doctorName: doctor.doctor_name,
+                    date,
+                    time: timeSlot,
+                    mode: mode === 'offline' ? 'offline' : 'online',
+                    hospitalName: mode === 'offline' ? 'MediCareHeart Institute, Okhla Road' : undefined
+                }
+            );
+        } catch (emailError) {
+            console.error('Failed to send confirmation email:', emailError);
+            // Don't fail the appointment booking if email fails
         }
 
-        // Delete the appointment
-        await db.none('DELETE FROM appointments WHERE id = $1', [appointmentId]);
-
-        res.json({ message: 'Appointment cancelled successfully' });
+        res.status(201).json({
+            success: true,
+            message: 'Appointment booked successfully',
+            data: appointment
+        });
     } catch (error) {
-        console.error('Error cancelling appointment:', error.message);
-        res.status(500).json({ message: 'Error cancelling appointment' });
+        console.error('Error booking appointment:', error.message);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error booking appointment',
+            error: error.message 
+        });
     }
 };
+
 
 module.exports = {
     getAvailableSlots,
     bookAppointment,
-    getMyAppointments,
-    cancelAppointment
+  
 };

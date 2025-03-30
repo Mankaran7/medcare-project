@@ -99,7 +99,10 @@ export default function DoctorForm({ onDoctorAdded }: { onDoctorAdded: (doctor: 
       });
       setImageFile(null);
 
-    
+      // Wait for 2 seconds before redirecting
+      setTimeout(() => {
+        router.push("/admin/app/doctors");
+      }, 2000);
     } catch (err) {
       console.error("Error adding doctor:", err);
       setError(err instanceof Error ? err.message : "Failed to add doctor");

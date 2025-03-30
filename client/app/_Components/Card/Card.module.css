@@ -8,50 +8,56 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-}
-
-.card:hover {
+  }
+  
+  .card:hover {
     transform: scale(1.05);
-}
-
-.profileImage {
+  }
+  
+  .profileImage {
     border-radius: 50%;
     margin-bottom: 10px;
-}
+    object-fit: cover;
+    width: 100px;
+    height: 100px;
 
-.name {
+   
+  }
+  
+  .name {
     font-size: 18px;
     font-weight: bold;
     margin: 5px 0;
-}
-
-.specialty {
+  }
+  
+  .specialty {
     color: #666;
     font-size: 14px;
     margin-bottom: 10px;
-}
-
-.infoContainer {
+  }
+  
+  .infoContainer {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     margin-bottom: 10px;
-}
-
-.experience {
+  }
+  
+  .experience {
     font-size: 14px;
     color: #444;
-}
-
-.ratingContainer {
+  }
+  
+  .ratingContainer {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 5px;
     margin-bottom: 10px;
-}
-
-.bookButton {
+  }
+  
+  .bookButton {
     background-color: #ebeff3;
     color: rgb(16, 15, 15);
     border: none;
@@ -61,35 +67,16 @@
     font-size: 16px;
     margin: auto;
     margin-top: 1rem;
-}
-
-.bookButton:hover {
+  }
+  
+  .bookButton:hover {
     background-color: #1f4124;
     color: white;
-}
-
-.imageContainer {
+  }
+  .imageContainer {
     align-self: center;
-}
-
-.degree {
-    color: #666;
-    margin: 0;
-    font-size: 0.9rem;
-}
-
-.bookButton {
-    margin-top: auto;
-    background-color: #2563eb;
-    color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
-    text-decoration: none;
-    text-align: center;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-
-.bookButton:hover {
-    background-color: #1d4ed8;
-}
+    height: 100px;
+    width: 100px;
+    position: relative;
+    
+  }

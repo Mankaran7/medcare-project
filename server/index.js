@@ -65,7 +65,6 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin/doctors', adminDoctorRoutes);
 app.use('/api/admin/appointments', adminAppointmentRoutes);
 
-// Seed admin user on server start
 seedAdmin().then(() => {
     console.log('Admin seeding completed');
 }).catch(error => {

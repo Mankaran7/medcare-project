@@ -36,10 +36,10 @@ export default function Navbar() {
                         <Link href="/appointments">Appointments</Link>
                     </li>
                     <li>
-                        <Link href="/">Health Blog</Link>
+                        <Link href="/healthblog">Health Blog</Link>
                     </li>
                     <li>
-                        <Link href="/">Reviews</Link>
+                        <Link href="/help">Help</Link>
                     </li>
                 </ul>
             </div>
@@ -106,13 +106,13 @@ export default function Navbar() {
                             </Link>
                         </li>
                         <li>
-                            <Link href="/" onClick={() => setMenuOpen(false)}>
+                            <Link href="/healthblog" onClick={() => setMenuOpen(false)}>
                                 Health Blog
                             </Link>
                         </li>
                         <li>
-                            <Link href="/" onClick={() => setMenuOpen(false)}>
-                                Reviews
+                            <Link href="/help" onClick={() => setMenuOpen(false)}>
+                                Help
                             </Link>
                         </li>
                     </ul>
