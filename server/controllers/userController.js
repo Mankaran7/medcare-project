@@ -22,18 +22,20 @@ const getMe = (req, res) => {
 
 
 const registerUser = async (req, res) => {
-    const { name, password } = req.body;
-    // Use the validated email from middleware
-    const email = req.validatedEmail;
-
-    if (!email) {
-        return res.status(400).json({
-            ok: false,
-            message: "Email validation failed",
-        });
-    }
+    const { name, email, password } = req.body;
 
     try {
+
+        const allowedDomains = ["gmail.com", "tothenew.com"];
+        const emailDomain = email.split("@")[1];
+
+        if (!allowedDomains.includes(emailDomain)) {
+            return res.status(400).json({
+                ok: false,
+                message: "Only Gmail and tothenew.com domains are allowed for signup/login",
+            });
+        }
+
         let user = await db.oneOrNone("SELECT * FROM users WHERE user_emailid=$1", [email]);
 
         if (user) {
@@ -43,13 +45,16 @@ const registerUser = async (req, res) => {
             });
         }
 
+     
         const salt = await bcrypt.genSalt(10);
         const hashedPw = await bcrypt.hash(password, salt);
 
+   
         const query =
-            "INSERT INTO users(user_name, user_emailid, password,role) VALUES($1, $2, $3,$4) RETURNING user_name, user_emailid, user_id;";
-        const result = await db.query(query, [name, email, hashedPw,'patient']);
+            "INSERT INTO users(user_name, user_emailid, password) VALUES($1, $2, $3) RETURNING user_name, user_emailid, user_id;";
+        const result = await db.query(query, [name, email, hashedPw]);
 
+        // ✅ Get the first row (the newly created user)
         const newUser = result.length > 0 ? result[0] : null;
 
         if (!newUser) {
@@ -59,6 +64,7 @@ const registerUser = async (req, res) => {
             });
         }
 
+        // ✅ Auto-login after successful registration
         req.login(newUser, (err) => {
             if (err) {
                 console.error("Auto-login error:", err);
