@@ -22,10 +22,18 @@ const getMe = (req, res) => {
 
 
 const registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    // Use the validated email from middleware
+    const email = req.validatedEmail;
+
+    if (!email) {
+        return res.status(400).json({
+            ok: false,
+            message: "Email validation failed",
+        });
+    }
 
     try {
-      
         let user = await db.oneOrNone("SELECT * FROM users WHERE user_emailid=$1", [email]);
 
         if (user) {

@@ -33,6 +33,12 @@ export default function ShowCards() {
         gender: "any",
     });
 
+    const [appliedFilters, setAppliedFilters] = useState({
+        rating: "any",
+        experience: "any",
+        gender: "any",
+    });
+
     // Map experience string values to integer values for the backend
     const experienceToIntMap: Record<string, number> = {
         "15+": 15,
@@ -69,17 +75,17 @@ export default function ShowCards() {
                 queryParams.append('q', searchQuery);
             } else if (filtersApplied) {
                 // Format gender value to match database (capitalize first letter)
-                const formattedGender = filters.gender !== "any" 
-                    ? filters.gender.charAt(0).toUpperCase() + filters.gender.slice(1)
-                    : filters.gender;
+                const formattedGender = appliedFilters.gender !== "any" 
+                    ? appliedFilters.gender.charAt(0).toUpperCase() + appliedFilters.gender.slice(1)
+                    : appliedFilters.gender;
 
-                if (filters.rating !== "any") {
-                    queryParams.append('rating', filters.rating);
+                if (appliedFilters.rating !== "any") {
+                    queryParams.append('rating', appliedFilters.rating);
                 }
-                if (filters.experience !== "any") {
-                    queryParams.append('experience', experienceToIntMap[filters.experience].toString());
+                if (appliedFilters.experience !== "any") {
+                    queryParams.append('experience', appliedFilters.experience);
                 }
-                if (filters.gender !== "any") {
+                if (appliedFilters.gender !== "any") {
                     queryParams.append('gender', formattedGender);
                 }
             }
@@ -115,7 +121,7 @@ export default function ShowCards() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, filters, searchQuery, searchApplied, filtersApplied, isResetting]);
+    }, [currentPage, appliedFilters, searchQuery, searchApplied, filtersApplied, isResetting]);
 
     useEffect(() => {
         fetchData();
@@ -129,18 +135,26 @@ export default function ShowCards() {
     };
 
     const handleFilters = () => {
-        setCurrentPage(1);
-        setSearchApplied(false);
-        setFiltersApplied(true);
+        try {
+            setCurrentPage(1);
+            setSearchApplied(false);
+            setFiltersApplied(true);
+            setAppliedFilters(filters);
+        } catch (error) {
+            console.error('Error applying filters:', error);
+            setError('Failed to apply filters. Please try again.');
+        }
     };
 
     const resetFilters = () => {
         setIsResetting(true);
-        setFilters({
+        const defaultFilters = {
             rating: "any",
             experience: "any",
             gender: "any",
-        });
+        };
+        setFilters(defaultFilters);
+        setAppliedFilters(defaultFilters);
         setCurrentPage(1);
         setFiltersApplied(false);
         setSearchApplied(false);
@@ -214,15 +228,15 @@ export default function ShowCards() {
                             </label>
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <label key={star} className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="rating"
+                                    <input
+                                        type="radio"
+                                        name="rating"
                                         value={star.toString()}
                                         checked={filters.rating === star.toString()}
-                                    onChange={handleFilterChange}
-                                />
+                                        onChange={handleFilterChange}
+                                    />
                                     <span>{star} star</span>
-                            </label>
+                                </label>
                             ))}
                         </div>
                     </div>
@@ -250,15 +264,15 @@ export default function ShowCards() {
                                 "0-1",
                             ].map((exp) => (
                                 <label key={exp} className={styles.filterOption}>
-                                <input
-                                    type="radio"
-                                    name="experience"
+                                    <input
+                                        type="radio"
+                                        name="experience"
                                         value={exp}
                                         checked={filters.experience === exp}
-                                    onChange={handleFilterChange}
-                                />
+                                        onChange={handleFilterChange}
+                                    />
                                     <span>{exp} years</span>
-                            </label>
+                                </label>
                             ))}
                         </div>
                     </div>

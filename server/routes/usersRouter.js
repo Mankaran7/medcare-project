@@ -10,10 +10,38 @@ const {
 const validateEmailDomain = require("../middleware/emailValidator");
 const router = express.Router();
 
+// Debug middleware
+const debugMiddleware = (req, res, next) => {
+    console.log('Debug - Registration Request:', {
+        body: req.body,
+        method: req.method,
+        path: req.path,
+        headers: req.headers['content-type']
+    });
+    next();
+};
+
+// Ensure middleware completes
+const ensureResponse = (req, res, next) => {
+    if (res.headersSent) {
+        console.log('Response already sent, stopping middleware chain');
+        return;
+    }
+    next();
+};
+
 // Public Routes
 router.get("/", getUsers);
 router.get("/me", getMe);
-router.post("/register" ,registerUser);
+
+// Apply middlewares in sequence with proper error handling
+router.post("/register", 
+    debugMiddleware,
+    validateEmailDomain,
+    ensureResponse,
+    registerUser
+);
+
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
 

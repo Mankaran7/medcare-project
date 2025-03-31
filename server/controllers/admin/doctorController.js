@@ -1,5 +1,79 @@
 const db = require('../../config/db');
 const multer = require('multer');
+const {cloudinary} = require('../../config/cloudinary.js')
+exports.addDoctor = async (req, res) => {
+    try {
+        const {
+            doctor_name,
+            degree,
+            speciality,
+            experience_years,
+            location,
+            available_time,
+            ratings,
+            gender,
+            
+        } = req.body;
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // Upload image to Cloudinary
+        const imageUrl = await uploadImage(req.file);
+
+        const availableTimeValue = available_time || "Not Available"; 
+        const ratingsValue = ratings || 0; 
+        const doctor = await db.one(
+            `INSERT INTO doctors 
+                (doctor_name, degree, speciality, experience_years, location, available_time, ratings, gender, doctor_photo)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING *`,
+            [
+                doctor_name,
+                degree,
+                speciality,
+                experience_years,
+                location,
+                availableTimeValue,
+                ratingsValue,
+                gender,
+                imageUrl,
+            ]
+        );
+        res.status(201).json({
+            message: "Doctor added successfully",
+            doctor,
+        });
+    } catch (error) {
+        console.error("Error adding doctor:", error);
+        res.status(500).json({ 
+            message: "Error adding doctor", 
+            error: error.message 
+        });
+    }
+};
+
+
+
+// Function to upload image to Cloudinary
+const uploadImage = async (file) => {
+    if (!file) {
+        throw new Error('No file provided for upload');
+    }
+
+    const base64Image = Buffer.from(file.buffer).toString('base64');
+    const dataURI = `data:${file.mimetype};base64,${base64Image}`;
+
+    try {
+        const uploadResponse = await cloudinary.uploader.upload(dataURI);
+        return uploadResponse.url;  // Return the uploaded image URL
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        throw new Error('Failed to upload image to Cloudinary');
+    }
+};
+
+
 
 
 exports.getAllDoctors = async (req, res) => {
@@ -8,7 +82,6 @@ exports.getAllDoctors = async (req, res) => {
         const limit = parseInt(req.query.limit) || 6;
         const offset = (page - 1) * limit;
         
-      
         const { search, rating, experience, gender } = req.query;
    
         const conditions = [];
@@ -25,15 +98,16 @@ exports.getAllDoctors = async (req, res) => {
         }
         
         if (experience && experience !== 'any') {
-       
             if (experience === '15+') {
                 conditions.push(`experience_years >= $${params.length + 1}`);
                 params.push(15);
             } else {
                 const [min, max] = experience.split('-').map(Number);
-                conditions.push(`experience_years >= $${params.length + 1} AND experience_years < $${params.length + 2}`);
-                params.push(min);
-                params.push(max);
+                if (!isNaN(min) && !isNaN(max)) {
+                    conditions.push(`experience_years >= $${params.length + 1} AND experience_years < $${params.length + 2}`);
+                    params.push(min);
+                    params.push(max);
+                }
             }
         }
         
@@ -44,11 +118,9 @@ exports.getAllDoctors = async (req, res) => {
             params.push(formattedGender);
         }
         
-        
         params.push(limit);
         params.push(offset);
         
- 
         const whereClause = conditions.length > 0 
             ? `WHERE ${conditions.join(" AND ")}`
             : "";
@@ -58,7 +130,6 @@ exports.getAllDoctors = async (req, res) => {
             params.slice(0, -2) 
         );
         
-   
         const doctors = await db.any(
             `SELECT 
                 doctor_id,

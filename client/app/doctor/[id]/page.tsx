@@ -25,18 +25,8 @@ interface Doctor {
     experience: string;
     rating: number;
     image: string;
-    designation?: string;
-    hospital?: string;
-    about?: string;
-    education?: string[];
-    awards?: string[];
-    publications?: string[];
-    languages?: string[];
-    consultationFee?: number;
-    availableSlots?: {
-        morning: string[];
-        evening: string[];
-    };
+    hospital: string;  // Required field
+    consultationFee: number;  // Required field
 }
 
 export default function DynamicDoctorPage() {
@@ -62,13 +52,8 @@ export default function DynamicDoctorPage() {
                     experience: `${data.experience_years} Years`,
                     rating: data.rating || 4,
                     image: data.doctor_photo,
-                    hospital: `MediCare ${data.speciality} Center, ${data.location}`,
-                    // Optional fields with default values
-                    consultationFee: 2800,
-                    languages: ['English', 'Hindi'],
-                    education: [`${data.degree} - Top Medical College`],
-                    awards: ['Excellence in Medical Practice Award'],
-                    publications: ['Various research papers in leading medical journals']
+                    hospital: `MediCare ${data.speciality} Center, ${data.location}`,  // Always set hospital
+                    consultationFee: 2800  // Always set consultation fee
                 };
                 
                 setDoctor(mappedDoctor);
