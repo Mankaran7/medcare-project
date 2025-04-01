@@ -141,7 +141,7 @@ const bookAppointment = async (req, res) => {
             );
 
             // Send notification to doctor
-            await emailService.sendAppointmentNotification(
+            await emailService.sendAppointmentConfirmation(
                 doctor.doctor_email,
                 {
                     patientName: req.user.user_name,

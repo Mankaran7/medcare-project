@@ -93,7 +93,7 @@ exports.getAllDoctors = async (req, res) => {
         }
         
         if (rating && rating !== 'any') {
-            conditions.push(`ratings >= $${params.length + 1}`);
+            conditions.push(`ratings <= $${params.length + 1}`);
             params.push(parseFloat(rating));
         }
         

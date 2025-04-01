@@ -92,6 +92,7 @@ export default function ShowCards() {
 
             // Always append page
             queryParams.append('page', currentPage.toString());
+            console.log("Query Params:", queryParams.toString());
 
             const response = await fetch(`${url}?${queryParams}`, {
                 method: "GET",
@@ -228,15 +229,15 @@ export default function ShowCards() {
                             </label>
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <label key={star} className={styles.filterOption}>
-                                    <input
-                                        type="radio"
-                                        name="rating"
+                                <input
+                                    type="radio"
+                                    name="rating"
                                         value={star.toString()}
                                         checked={filters.rating === star.toString()}
-                                        onChange={handleFilterChange}
-                                    />
+                                    onChange={handleFilterChange}
+                                />
                                     <span>{star} star</span>
-                                </label>
+                            </label>
                             ))}
                         </div>
                     </div>
@@ -264,15 +265,15 @@ export default function ShowCards() {
                                 "0-1",
                             ].map((exp) => (
                                 <label key={exp} className={styles.filterOption}>
-                                    <input
-                                        type="radio"
-                                        name="experience"
+                                <input
+                                    type="radio"
+                                    name="experience"
                                         value={exp}
                                         checked={filters.experience === exp}
-                                        onChange={handleFilterChange}
-                                    />
+                                    onChange={handleFilterChange}
+                                />
                                     <span>{exp} years</span>
-                                </label>
+                            </label>
                             ))}
                         </div>
                     </div>

@@ -10,20 +10,18 @@ const {
 
 const router = express.Router();
 
-
-
 router.get("/", getUsers);
 router.get("/me", getMe);
 
+// Apply middlewares in sequence with proper error handling
+router.post("/register", registerUser
 
-router.post("/register", 
-   
-    registerUser
 );
 
 router.post("/login", loginUser);
 router.post("/logout", logoutUser);
 
+// Google OAuth routes
 router.get("/google", 
     passport.authenticate("google", { 
         scope: ["profile", "email"],
@@ -34,7 +32,7 @@ router.get("/google",
 router.get("/google/callback", 
     passport.authenticate("google", { failureRedirect: "http://localhost:3000/login" }),
     (req, res) => {
-  
+        // Ensure user is set in session
         if (req.user) {
             req.session.save((err) => {
                 if (err) {
